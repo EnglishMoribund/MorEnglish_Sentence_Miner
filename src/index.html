@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MorEnglish Sentence Miner</title>
+    <style>
+      /* Vendored fonts — the app works offline and the canvas renderer
+         never falls back to a substitute face. */
+      @font-face {
+        font-family: 'VT323';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/vt323-latin.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Press Start 2P';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/press-start-2p-latin.woff2') format('woff2');
+      }
+
+      :root {
+        --abyss: #050510;          /* page void */
+        --panel-hi: #10104a;       /* FF7 window gradient, top */
+        --panel-lo: #08081f;       /* FF7 window gradient, bottom */
+        --ridge: #6a6a8a;          /* silver bevel */
+        --ridge-dark: #14143c;
+        --text-main: #d8d8e8;
+        --text-muted: #7a7a9a;
+        --gold: #e8c547;
+        --cyan: #7df9ff;
+        --gem: #b06cf0;
+        --font-chrome: 'Press Start 2P', monospace;
+        --font-body: 'VT323', monospace;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--abyss);
+        color: var(--text-main);
+        font-family: var(--font-body);
+        overflow: hidden;
+      }
+
+      /* CRT scanlines over everything */
+      body::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px);
+        z-index: 999;
+      }
+
+      /* ---- FF7 window panel ---- */
+      .panel {
+        background: linear-gradient(180deg, var(--panel-hi), var(--panel-lo) 75%);
+        border: 2px solid var(--ridge);
+        border-radius: 6px;
+        box-shadow: inset 0 0 0 2px var(--ridge-dark), inset 0 2px 0 rgba(255,255,255,.12), 0 4px 14px rgba(0,0,0,.6);
+      }
+
+      /* ---- Titlebar ---- */
+      #titlebar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 38px;
+        padding: 0 0 0 10px;
+        background: linear-gradient(180deg, #1a1a5e, #0c0c33);
+        border-bottom: 2px solid var(--gold);
+        user-select: none;
+        flex: none;
+      }
+      .tb-left { display: flex; align-items: center; gap: 10px; height: 100%; flex: 1; }
+      .tb-icon { width: 20px; height: 20px; image-rendering: pixelated; pointer-events: none; }
+      .tb-title { font-family: var(--font-chrome); font-size: 0.6rem; color: var(--gold); letter-spacing: 0.15em; text-shadow: 2px 2px 0 #000; pointer-events: none; }
+      .tb-controls { display: flex; height: 100%; }
+      .tb-controls button {
+        width: 44px; height: 100%;
+        background: transparent; border: none;
+        color: var(--text-muted);
+        font-family: var(--font-chrome); font-size: 0.6rem;
+        cursor: pointer;
+        transition: background .12s, color .12s;
+      }
+      .tb-controls button:hover { background: rgba(232,197,71,.15); color: var(--gold); }
+      #tb-close:hover { background: #8b1a1a; color: #ffd8d8; }
+
+      /* ---- Menubar ---- */
+      #menubar {
+        display: flex;
+        background: linear-gradient(180deg, #101040, #0a0a28);
+        border-bottom: 2px solid var(--ridge-dark);
+        flex: none;
+        user-select: none;
+        position: relative;
+        z-index: 100;
+      }
+      .menu { position: relative; }
+      .menu-btn {
+        background: transparent; border: none;
+        font-family: var(--font-chrome); font-size: 0.55rem;
+        color: var(--text-main);
+        padding: 10px 14px;
+        cursor: pointer;
+        letter-spacing: 0.1em;
+        transition: color .12s, background .12s;
+      }
+      .menu-btn:hover, .menu.open .menu-btn { color: var(--gold); background: rgba(232,197,71,.1); }
+      .menu-drop {
+        display: none;
+        position: absolute;
+        top: 100%; left: 0;
+        min-width: 240px;
+        padding: 6px;
+        z-index: 100;
+      }
+      .menu.open .menu-drop { display: block; }
+      #context-menu {
+        display: none;
+        position: fixed;
+        z-index: 300;
+        min-width: 230px;
+        padding: 6px;
+      }
+      #context-menu.open { display: block; }
+      .menu-drop button, #context-menu button {
+        display: flex; justify-content: space-between; align-items: center; gap: 16px;
+        width: 100%;
+        background: transparent; border: none;
+        font-family: var(--font-body); font-size: 1.15rem;
+        color: var(--text-main);
+        padding: 6px 10px 6px 22px;
+        cursor: pointer;
+        text-align: left;
+        position: relative;
+        transition: color .1s, background .1s;
+      }
+      .menu-drop button:hover, #context-menu button:hover { color: var(--gold); background: rgba(232,197,71,.08); }
+      .menu-drop button:hover::before, #context-menu button:hover::before { content: '▸'; position: absolute; left: 6px; color: var(--gold); }
+      .menu-drop kbd { font-family: var(--font-body); font-size: 0.95rem; color: var(--text-muted); }
+      .menu-drop hr, #context-menu hr { border: none; border-top: 1px solid var(--ridge-dark); margin: 6px 4px; }
+
+      /* ---- Main layout ---- */
+      main {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 1rem;
+        align-content: start;
+      }
+      .col { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+      .panel-block { padding: 0.9rem; }
+
+      label {
+        display: block;
+        font-family: var(--font-chrome);
+        font-size: 0.5rem;
+        letter-spacing: 0.15em;
+        color: var(--gold);
+        text-transform: uppercase;
+        text-shadow: 1px 1px 0 #000;
+        margin-bottom: 0.6rem;
+      }
+
+      textarea, input {
+        background: var(--abyss);
+        border: 2px solid var(--ridge-dark);
+        border-radius: 4px;
+        color: var(--text-main);
+        padding: 0.6rem;
+        font-family: var(--font-body);
+        font-size: 1.3rem;
+        width: 100%;
+        transition: border-color .15s, box-shadow .15s;
+      }
+      textarea:focus, input:focus {
+        outline: none;
+        border-color: var(--cyan);
+        box-shadow: 0 0 8px rgba(125,249,255,.25);
+      }
+      :focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+
+      button {
+        background: linear-gradient(180deg, #1a1a5e, #0e0e38);
+        border: 2px solid var(--ridge);
+        border-radius: 4px;
+        color: var(--text-main);
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        font-family: var(--font-chrome);
+        font-size: 0.55rem;
+        letter-spacing: 0.08em;
+        transition: all .15s;
+      }
+      button:hover:not(:disabled) {
+        border-color: var(--gold);
+        color: var(--gold);
+        box-shadow: 0 0 10px rgba(232,197,71,.3);
+        transform: translateY(-1px);
+      }
+      button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+      .btn-primary { border-color: var(--gold); color: var(--gold); }
+
+      /* ---- Grammar Registry ---- */
+      #registry-container { height: 440px; overflow-y: auto; border: 2px solid var(--ridge-dark); border-radius: 4px; background: var(--abyss); }
+      #registry-container details { border-bottom: 1px solid var(--ridge-dark); }
+      #registry-container summary {
+        padding: 0.55rem 0.75rem;
+        background: linear-gradient(180deg, #14144a, #0c0c30);
+        color: var(--gold);
+        font-family: var(--font-chrome); font-size: 0.5rem;
+        letter-spacing: 0.12em; text-transform: uppercase;
+        cursor: pointer; list-style: none;
+        display: flex; justify-content: space-between; align-items: center;
+        user-select: none;
+        transition: background .12s;
+      }
+      #registry-container summary:hover { background: linear-gradient(180deg, #1c1c66, #10103c); }
+      #registry-container summary::after { content: '▼'; font-size: 0.45rem; color: var(--text-muted); }
+      #registry-container details[open] summary::after { content: '▲'; color: var(--cyan); }
+      .reg-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--ridge-dark); position: relative; }
+      .reg-wiki {
+        position: absolute; right: 6px; top: 50%;
+        transform: translateY(-50%);
+        width: 28px; height: 28px;
+        padding: 0;
+        font-size: 0.55rem;
+        color: var(--cyan);
+        border-color: var(--ridge-dark);
+        opacity: 0;
+        transition: opacity .12s, border-color .15s, color .15s;
+      }
+      .reg-row:hover .reg-wiki, .reg-wiki:focus-visible { opacity: 1; }
+      .reg-wiki:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 8px rgba(125,249,255,.3); transform: translateY(calc(-50% - 1px)); }
+      .registry-item {
+        display: block; width: 100%; text-align: left;
+        background: transparent;
+        padding: 0.5rem 2.6rem 0.5rem 1.6rem;
+        border: none; border-radius: 0;
+        font-family: var(--font-body);
+        position: relative;
+      }
+      .registry-item:hover:not(:disabled) {
+        background: rgba(232,197,71,.07);
+        transform: translateX(3px);
+        box-shadow: none; border-color: var(--ridge-dark); color: inherit;
+      }
+      .registry-item:hover:not(:disabled)::before { content: '▸'; position: absolute; left: 8px; color: var(--gold); }
+      .registry-item:disabled { opacity: 0.35; cursor: not-allowed; }
+      .reg-label { font-size: 1.25rem; color: var(--text-main); }
+      .registry-item:hover:not(:disabled) .reg-label { color: var(--gold); }
+      .reg-def { display: block; font-size: 1rem; color: var(--text-muted); margin-top: 0.1rem; }
+
+      /* ---- Active Segments ---- */
+      #segments-container {
+        display: flex; flex-wrap: wrap; gap: 0.5rem;
+        background: var(--abyss);
+        padding: 1rem;
+        border: 2px solid var(--ridge-dark); border-radius: 4px;
+        min-height: 120px; align-items: flex-end;
+      }
+      .segment-box {
+        padding: 0.4rem 0.65rem;
+        border: 2px solid var(--ridge-dark);
+        border-radius: 4px;
+        background: linear-gradient(180deg, #0e0e38, #08081f);
+        cursor: pointer;
+        display: flex; flex-direction: column; align-items: center;
+        user-select: none;
+        transition: border-color .12s, box-shadow .12s, transform .12s;
+      }
+      .segment-box:hover { border-color: var(--ridge); transform: translateY(-2px); }
+      .segment-box.active {
+        border-color: var(--cyan);
+        box-shadow: 0 0 10px rgba(125,249,255,.35);
+        background: linear-gradient(180deg, #123, #0a1a2a);
+      }
+      .segment-punct { padding: 0.4rem 0.1rem; display: flex; align-items: center; user-select: none; color: var(--text-muted); }
+      .segment-text { font-size: 1.6rem; }
+      .segment-tag {
+        font-family: var(--font-chrome); font-size: 0.45rem;
+        color: var(--gold);
+        text-transform: uppercase; letter-spacing: 0.1em;
+        margin-top: 0.35rem;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      /* ---- Output ---- */
+      .output-controls { display: flex; gap: 0.75rem; margin-bottom: 0.9rem; }
+      .output-controls button { flex: 1; }
+      #preview-container {
+        background: var(--abyss);
+        border: 2px solid var(--ridge-dark); border-radius: 4px;
+        min-height: 280px;
+        display: flex; align-items: center; justify-content: center;
+        padding: 1rem; overflow: auto;
+      }
+      #preview-image { max-width: 100%; height: auto; display: none; }
+      #preview-placeholder { color: var(--text-muted); font-size: 1.3rem; }
+      #text-output-area { display: none; height: 200px; }
+
+      /* ---- Status bar ---- */
+      #statusbar {
+        display: flex; align-items: center; gap: 1.5rem;
+        height: 30px;
+        padding: 0 12px;
+        background: linear-gradient(180deg, #101040, #08081f);
+        border-top: 2px solid var(--gold);
+        font-family: var(--font-chrome); font-size: 0.5rem;
+        color: var(--text-muted);
+        letter-spacing: 0.1em;
+        user-select: none;
+        flex: none;
+      }
+      #status-msg { color: var(--cyan); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #statusbar .stat b { color: var(--text-main); font-weight: normal; }
+      .sb-version { color: var(--text-muted); }
+      .blink { color: var(--cyan); animation: blink 1.1s steps(1) infinite; }
+      @keyframes blink { 50% { opacity: 0; } }
+
+      /* ---- About dialog ---- */
+      dialog {
+        background: linear-gradient(180deg, var(--panel-hi), var(--panel-lo) 75%);
+        border: 2px solid var(--gold);
+        border-radius: 6px;
+        box-shadow: inset 0 0 0 2px var(--ridge-dark), 0 8px 30px rgba(0,0,0,.8);
+        color: var(--text-main);
+        font-family: var(--font-body); font-size: 1.3rem;
+        padding: 1.5rem 2rem;
+        text-align: center;
+        max-width: 380px;
+      }
+      dialog::backdrop { background: rgba(5,5,16,.75); }
+      dialog h2 { font-family: var(--font-chrome); font-size: 0.7rem; color: var(--gold); letter-spacing: 0.15em; }
+      dialog .gem { font-size: 2rem; color: var(--gem); }
+      dialog p { color: var(--text-muted); margin: 0.75rem 0 1.25rem; }
+      #shortcuts-dialog { max-width: 440px; }
+      #custom-dialog { max-width: 460px; }
+      #custom-dialog code {
+        display: block;
+        background: var(--abyss);
+        border: 1px solid var(--ridge-dark);
+        border-radius: 4px;
+        color: var(--cyan);
+        font-family: var(--font-body); font-size: 1.05rem;
+        padding: 0.5rem;
+        margin: 0.75rem 0;
+        word-break: break-all;
+        user-select: all;
+      }
+      .toml-example {
+        text-align: left;
+        background: var(--abyss);
+        border: 1px solid var(--ridge-dark);
+        border-radius: 4px;
+        color: var(--text-muted);
+        font-family: var(--font-body); font-size: 1.05rem;
+        padding: 0.6rem 0.8rem;
+        margin: 0 0 0.75rem;
+        overflow-x: auto;
+      }
+      #custom-status { min-height: 1.2em; color: var(--gold); margin: 0 0 1rem; }
+      .dialog-actions { display: flex; gap: 0.75rem; justify-content: center; }
+      .shortcuts-list {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.5rem 1.2rem;
+        align-items: center;
+        text-align: left;
+        margin: 1.25rem 0 1.5rem;
+      }
+      .shortcuts-list .key {
+        font-family: var(--font-chrome); font-size: 0.45rem;
+        color: var(--gold);
+        background: linear-gradient(180deg, #1a1a5e, #0e0e38);
+        border: 1px solid var(--ridge);
+        border-bottom-width: 3px;
+        border-radius: 4px;
+        padding: 4px 6px;
+        white-space: nowrap;
+      }
+
+      /* ---- Scrollbars ---- */
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-track { background: var(--abyss); }
+      ::-webkit-scrollbar-thumb { background: #26265e; border: 2px solid var(--abyss); border-radius: 5px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+      @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; animation: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <header id="titlebar" data-tauri-drag-region>
+      <div class="tb-left" data-tauri-drag-region>
+        <img class="tb-icon" src="/app-icon.png" alt="" />
+        <span class="tb-title">MORENGLISH SENTENCE MINER</span>
+      </div>
+      <div class="tb-controls">
+        <button id="tb-min" title="Minimize" aria-label="Minimize">─</button>
+        <button id="tb-max" title="Maximize" aria-label="Maximize">□</button>
+        <button id="tb-close" title="Close" aria-label="Close">✕</button>
+      </div>
+    </header>
+
+    <nav id="menubar">
+      <div class="menu">
+        <button class="menu-btn">FILE</button>
+        <div class="menu-drop panel">
+          <button data-action="parse">Mine sentence <kbd>Ctrl+Enter</kbd></button>
+          <button data-action="clear-source">Clear source</button>
+          <hr>
+          <button data-action="custom-tags">Custom tags…</button>
+          <hr>
+          <button data-action="exit">Exit</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-btn">EDIT</button>
+        <div class="menu-drop panel">
+          <button data-action="undo">Undo <kbd>Ctrl+Z</kbd></button>
+          <hr>
+          <button data-action="select-all">Select all segments <kbd>Ctrl+A</kbd></button>
+          <button data-action="clear-selection">Clear selection <kbd>Esc</kbd></button>
+          <hr>
+          <button data-action="clear-tags">Clear all tags</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-btn">EXPORT</button>
+        <div class="menu-drop panel">
+          <button data-action="render-image">Render image</button>
+          <button data-action="save-png">Save image as PNG</button>
+          <button data-action="copy-md">Copy as Markdown</button>
+          <button data-action="copy-ruby">Copy as HTML (ruby)</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-btn">HELP</button>
+        <div class="menu-drop panel">
+          <button data-action="shortcuts">Keyboard shortcuts <kbd>F1</kbd></button>
+          <button data-action="about">About MorEnglish Sentence Miner</button>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <div class="col">
+        <div class="panel panel-block">
+          <label for="source-text">Mining source</label>
+          <textarea id="source-text" rows="5">Antioch Abbas, the legendary kung-fu master of the Musaceae style, departed betimes, wielding a lethiferous banana, ready to take out the terrorists terrorizing the citizens of Plovdiv at sparrowfart with their flatulence.</textarea>
+          <button id="btn-parse" class="btn-primary" style="width: 100%; margin-top: 0.6rem;">⛏ MINE SENTENCE</button>
+        </div>
+
+        <div class="panel panel-block">
+          <label for="registry-search">Grammar registry</label>
+          <input type="text" id="registry-search" placeholder="Search tags..." style="margin-bottom: 0.6rem;">
+          <div id="registry-container"></div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="panel panel-block">
+          <label>Active segments</label>
+          <div id="segments-container"></div>
+        </div>
+
+        <div class="panel panel-block">
+          <label>Output</label>
+          <div class="output-controls">
+            <button id="btn-mode-img" class="btn-primary">RENDER</button>
+            <button data-action="save-png">SAVE PNG</button>
+            <button id="btn-mode-md">COPY MARKDOWN</button>
+            <button id="btn-mode-ruby">COPY RUBY</button>
+          </div>
+          <div id="preview-container">
+            <span id="preview-placeholder">Diagram render will appear here...</span>
+            <img id="preview-image" alt="Grammar Diagram" />
+            <textarea id="text-output-area" readonly></textarea>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer id="statusbar">
+      <span id="status-msg">READY</span>
+      <span class="stat">SEG <b id="stat-seg">0</b></span>
+      <span class="stat">TAGGED <b id="stat-tagged">0</b></span>
+      <span class="stat">SEL <b id="stat-sel">0</b></span>
+      <span class="sb-version">v0.1.0 <span class="blink">▮</span></span>
+    </footer>
+
+    <div id="context-menu" class="panel"></div>
+
+    <dialog id="custom-dialog">
+      <h2>CUSTOM TAGS</h2>
+      <p>Add your own tags to this file, then reload:</p>
+      <code id="custom-path">—</code>
+      <pre class="toml-example">[[tag]]
+id = "kenning"
+label = "kenning"
+def = "a compound with metaphorical meaning"
+category = "My Tags"</pre>
+      <p id="custom-status"></p>
+      <div class="dialog-actions">
+        <button data-action="reload-custom">RELOAD</button>
+        <button data-action="close-dialog">CLOSE</button>
+      </div>
+    </dialog>
+
+    <dialog id="shortcuts-dialog">
+      <h2>KEYBOARD SHORTCUTS</h2>
+      <div class="shortcuts-list">
+        <span><kbd class="key">Ctrl</kbd>+<kbd class="key">Enter</kbd></span><span>Mine sentence</span>
+        <span><kbd class="key">Ctrl</kbd>+<kbd class="key">Z</kbd></span><span>Undo</span>
+        <span><kbd class="key">Ctrl</kbd>+<kbd class="key">A</kbd></span><span>Select all segments</span>
+        <span><kbd class="key">Enter</kbd></span><span>In search: apply top tag hit</span>
+        <span><kbd class="key">Shift</kbd>+<kbd class="key">Click</kbd></span><span>Select a range</span>
+        <span><kbd class="key">Ctrl</kbd>+<kbd class="key">Click</kbd></span><span>Add or remove one segment</span>
+        <span><kbd class="key">Drag</kbd></span><span>Sweep-select segments</span>
+        <span><kbd class="key">Click</kbd></span><span>On empty space: clear selection</span>
+        <span><kbd class="key">Esc</kbd></span><span>Clear selection, close menus</span>
+        <span><kbd class="key">R-Click</kbd></span><span>Segment menu: Wiktionary, wiki, tags</span>
+        <span><kbd class="key">F1</kbd></span><span>Show this dialog</span>
+      </div>
+      <button data-action="close-dialog">CLOSE</button>
+    </dialog>
+
+    <dialog id="about-dialog">
+      <div class="gem">◆</div>
+      <h2>MORENGLISH SENTENCE MINER</h2>
+      <p>v0.1.0 — mine English sentences, tag their grammar, forge diagrams.</p>
+      <button data-action="close-dialog">CLOSE</button>
+    </dialog>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
