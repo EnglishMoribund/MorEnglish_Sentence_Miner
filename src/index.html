@@ -103,7 +103,7 @@
         flex: none;
         user-select: none;
         position: relative;
-        z-index: 100;
+        z-index: 1001; /* menus stack above the scanline-free preview (1000) */
       }
       .menu { position: relative; }
       .menu-btn {
@@ -122,13 +122,13 @@
         top: 100%; left: 0;
         min-width: 240px;
         padding: 6px;
-        z-index: 100;
+        z-index: 1001;
       }
       .menu.open .menu-drop { display: block; }
       #context-menu {
         display: none;
         position: fixed;
-        z-index: 300;
+        z-index: 1001;
         min-width: 230px;
         padding: 6px;
       }
@@ -313,6 +313,10 @@
         min-height: 280px;
         display: flex; align-items: center; justify-content: center;
         padding: 1rem; overflow: auto;
+        /* above the body::after CRT scanlines (z-index 999): the fine 1px/3px
+           pattern moirés into wide bands on light diagram themes, and the
+           preview should show exactly what exports — which have no scanlines */
+        position: relative; z-index: 1000;
       }
       #preview-image { max-width: 100%; height: auto; display: none; }
       #preview-placeholder { color: var(--text-muted); font-size: 1.3rem; }
