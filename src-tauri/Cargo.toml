@@ -1,6 +1,6 @@
 [package]
 name = "sentence-miner"
-version = "0.2.0"
+version = "0.3.0"
 description = "MorEnglish Sentence Miner — mine English sentences, tag their grammar, forge diagrams"
 authors = ["you"]
 edition = "2021"
