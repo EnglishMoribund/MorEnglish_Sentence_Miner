@@ -191,6 +191,16 @@ function openExternal(url) {
   open(url);
 }
 
+// Open a config file in the system's default editor (desktop app only)
+function openConfigFile(path) {
+  const open = window.__TAURI__?.opener?.openPath;
+  if (!path) { setStatus('FILE NOT CREATED YET — REOPEN THIS DIALOG'); return; }
+  if (!open) { setStatus('AVAILABLE IN THE DESKTOP APP ONLY'); return; }
+  open(path)
+    .then(() => setStatus('OPENED IN YOUR EDITOR — SAVE, THEN RELOAD'))
+    .catch(err => setStatus(`OPEN FAILED — ${err}`));
+}
+
 // OSRS-style wiki lookup: open the Wikipedia article for a grammar term.
 // Bare label so Wikipedia's exact-title redirect fires; "(...)" and "/..."
 // variants in labels would break that. Cases get " case" ("genitive case").
@@ -471,6 +481,8 @@ const actions = {
   'library': () => { buildLibraryUI(); els.libraryDialog.showModal(); },
   'custom-tags': () => els.customDialog.showModal(),
   'reload-custom': () => loadCustomTags(true),
+  'open-registry-file': () => openConfigFile(els.customPath.textContent),
+  'open-plugins-file': () => openConfigFile(els.pluginsPath.textContent),
   'about': () => els.aboutDialog.showModal(),
   'shortcuts': () => els.shortcutsDialog.showModal(),
   'close-dialog': (btn) => btn.closest('dialog').close()
