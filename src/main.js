@@ -91,6 +91,41 @@ function loadDiagramStyle() {
   try { diagramStyle = { ...DEFAULT_STYLE, ...JSON.parse(localStorage.getItem('diagram-style')) }; } catch {}
 }
 
+// Whole-style presets; each chip in the dialog previews its own palette
+const STYLE_PRESETS = {
+  'Abyss': { ...DEFAULT_STYLE },
+  'Deep Space': { mode: 'gradient', bg1: '#050510', bg2: '#2a1a4a', text: '#d8d8e8', line: '#e8c547', tag: '#7df9ff' },
+  'Sunset': { mode: 'gradient', bg1: '#2d1b4e', bg2: '#7a2048', text: '#ffe9d6', line: '#ff9e3d', tag: '#ffd166' },
+  'Phosphor': { mode: 'solid', bg1: '#000000', bg2: '#001100', text: '#33ff66', line: '#1f9944', tag: '#ffb000' },
+  'Blueprint': { mode: 'solid', bg1: '#0a3055', bg2: '#0a3055', text: '#eaf3ff', line: '#ffffff', tag: '#9fd0ff' },
+  'Manuscript': { mode: 'solid', bg1: '#f4ecd8', bg2: '#f4ecd8', text: '#2b2419', line: '#8b2500', tag: '#1d5a8a' },
+  'Ink (transparent)': { mode: 'transparent', bg1: '#ffffff', bg2: '#ffffff', text: '#1a1a1a', line: '#b8860b', tag: '#0a6a8a' }
+};
+
+function buildStylePresets() {
+  const wrap = document.getElementById('style-presets');
+  for (const [name, preset] of Object.entries(STYLE_PRESETS)) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.title = `Apply the ${name} theme`;
+    b.style.background = preset.mode === 'transparent'
+      ? 'repeating-conic-gradient(#555 0% 25%, #999 0% 50%) 0 0 / 12px 12px'
+      : preset.mode === 'gradient'
+        ? `linear-gradient(180deg, ${preset.bg1}, ${preset.bg2})`
+        : preset.bg1;
+    b.style.color = preset.text;
+    b.style.border = `1px solid ${preset.line}`;
+    b.addEventListener('click', () => {
+      diagramStyle = { ...preset };
+      localStorage.setItem('diagram-style', JSON.stringify(diagramStyle));
+      syncStyleControls();
+      triggerRender();
+      setStatus(`STYLE ▸ ${name.toUpperCase()}`);
+    });
+    wrap.appendChild(b);
+  }
+}
+
 function styleInputs() {
   return {
     mode: document.getElementById('style-bg-mode'),
@@ -444,6 +479,7 @@ function init() {
   loadLibrary();
   loadDiagramStyle();
   bindStyleControls();
+  buildStylePresets();
   els.btnParse.addEventListener('click', handleParse);
   els.queuePrev.addEventListener('click', () => queueStep(-1));
   els.queueNext.addEventListener('click', () => queueStep(1));

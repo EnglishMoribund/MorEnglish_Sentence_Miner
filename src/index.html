@@ -384,6 +384,17 @@
       #ai-dialog { max-width: 560px; }
       #ai-status { min-height: 1.2em; color: var(--gold); margin: 0.75rem 0; }
       #plugins-dialog { max-width: 560px; }
+      #style-presets {
+        display: flex; flex-wrap: wrap; gap: 6px;
+        justify-content: center;
+        margin: 1rem 0 0.25rem;
+      }
+      #style-presets button {
+        font-family: var(--font-body); font-size: 1.05rem;
+        padding: 0.25rem 0.7rem;
+        cursor: pointer;
+        border-radius: 3px;
+      }
       .style-grid {
         display: grid;
         grid-template-columns: auto 1fr;
@@ -637,6 +648,7 @@ category = "My Tags"</pre>
     <dialog id="style-dialog">
       <h2>DIAGRAM STYLE</h2>
       <p>Changes re-render live and apply to PNG, SVG, clipboard, and plugin exports.</p>
+      <div id="style-presets"></div>
       <div class="style-grid">
         <label for="style-bg-mode">Background</label>
         <select id="style-bg-mode">
