@@ -1,6 +1,9 @@
 import { GRAMMAR_REGISTRY } from './registry.js';
 
 let segments = [];
+let queue = [];        // remaining sentences of a multi-sentence source
+let queueIndex = 0;
+let library = [];      // saved sentences, persisted to library.json in the config dir
 let selectedIndices = new Set();
 let lastClickedIndex = null;
 let isDragging = false;
@@ -18,6 +21,12 @@ let registry = [...GRAMMAR_REGISTRY];
 const els = {
   sourceText: document.getElementById('source-text'),
   btnParse: document.getElementById('btn-parse'),
+  queueBar: document.getElementById('queue-bar'),
+  queuePos: document.getElementById('queue-pos'),
+  queuePrev: document.getElementById('queue-prev'),
+  queueNext: document.getElementById('queue-next'),
+  libraryDialog: document.getElementById('library-dialog'),
+  libraryList: document.getElementById('library-list'),
   registryContainer: document.getElementById('registry-container'),
   registrySearch: document.getElementById('registry-search'),
   segmentsContainer: document.getElementById('segments-container'),
@@ -35,8 +44,41 @@ const els = {
   shortcutsDialog: document.getElementById('shortcuts-dialog'),
   customDialog: document.getElementById('custom-dialog'),
   customPath: document.getElementById('custom-path'),
-  customStatus: document.getElementById('custom-status')
+  customStatus: document.getElementById('custom-status'),
+  aiDialog: document.getElementById('ai-dialog'),
+  aiStatus: document.getElementById('ai-status'),
+  pluginsDialog: document.getElementById('plugins-dialog'),
+  pluginsPath: document.getElementById('plugins-path'),
+  pluginsList: document.getElementById('plugins-list'),
+  pluginsLoading: document.getElementById('plugins-loading'),
+  pluginsStatus: document.getElementById('plugins-status'),
+  aiResults: document.getElementById('ai-results'),
+  fontFamily: document.getElementById('font-family'),
+  fontSize: document.getElementById('font-size')
 };
+
+// Fill the font picker with every family installed on the system.
+// The static datalist in index.html stays as the browser-mode fallback.
+async function loadSystemFonts() {
+  if (!invoke) return;
+  try {
+    const fonts = await invoke('list_fonts');
+    const list = document.getElementById('font-list');
+    const frag = document.createDocumentFragment();
+    for (const name of ['VT323', 'Press Start 2P', ...fonts]) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      frag.appendChild(opt);
+    }
+    list.replaceChildren(frag);
+  } catch { /* keep the static fallback list */ }
+}
+
+function outputFontPrefs() {
+  const family = els.fontFamily.value.trim().replace(/["']/g, '') || 'VT323';
+  const size = Math.min(96, Math.max(16, parseInt(els.fontSize.value, 10) || 38));
+  return { family, size };
+}
 
 async function loadCustomTags(notify = false) {
   if (!invoke) {
@@ -106,7 +148,85 @@ function undo() {
 }
 
 function saveState() {
-  localStorage.setItem('sentence-miner', JSON.stringify({ text: els.sourceText.value, segments }));
+  localStorage.setItem('sentence-miner', JSON.stringify({ text: els.sourceText.value, segments, queue, queueIndex }));
+  syncState();
+}
+
+// ---- Sentence library (persisted next to registry.toml, served at GET /library) ----
+
+async function loadLibrary() {
+  if (!invoke) return;
+  try { library = JSON.parse(await invoke('library_load')) || []; } catch { library = []; }
+}
+
+function persistLibrary() {
+  invoke?.('library_save', { json: JSON.stringify(library) });
+}
+
+function saveToLibrary(quiet = false) {
+  if (segments.length === 0) { setStatus('NOTHING TO SAVE'); return; }
+  const text = els.sourceText.value.trim();
+  const entry = { text, segments: structuredClone(segments), savedAt: Date.now() };
+  const existing = library.findIndex(e => e.text === text);
+  if (existing > -1) library[existing] = entry; else library.push(entry);
+  persistLibrary();
+  if (!quiet) setStatus(existing > -1 ? 'LIBRARY ▸ UPDATED' : `LIBRARY ▸ SAVED (${library.length} TOTAL)`);
+}
+
+function loadLibraryEntry(entry) {
+  pushUndo();
+  els.sourceText.value = entry.text;
+  segments = structuredClone(entry.segments);
+  selectedIndices.clear();
+  lastClickedIndex = null;
+  renderSegmentsUI();
+  updateRegistryState();
+  showOutputView('placeholder');
+  triggerRender();
+  setStatus('LIBRARY ▸ LOADED');
+}
+
+function buildLibraryUI() {
+  els.libraryList.innerHTML = '';
+  if (library.length === 0) {
+    els.libraryList.textContent = 'Nothing saved yet — use FILE ▸ Save to library.';
+    return;
+  }
+  [...library].sort((a, b) => b.savedAt - a.savedAt).forEach(entry => {
+    const row = document.createElement('div');
+    row.className = 'ai-row';
+
+    const info = document.createElement('div');
+    info.className = 'ai-info';
+    info.appendChild(makeSpan('ai-text', entry.text.length > 70 ? `${entry.text.slice(0, 70)}…` : entry.text));
+    const tagged = entry.segments.filter(s => s.tag).length;
+    info.appendChild(makeSpan('ai-reason', `${tagged} tagged · ${new Date(entry.savedAt).toLocaleString()}`));
+
+    const load = document.createElement('button');
+    load.textContent = 'LOAD';
+    load.addEventListener('click', () => { loadLibraryEntry(entry); els.libraryDialog.close(); });
+
+    const del = document.createElement('button');
+    del.textContent = '✕';
+    del.title = 'Delete from library';
+    del.addEventListener('click', () => {
+      library = library.filter(e => e !== entry);
+      persistLibrary();
+      buildLibraryUI();
+    });
+
+    row.append(info, load, del);
+    els.libraryList.appendChild(row);
+  });
+}
+
+// Mirror state to the Rust side so the localhost connector API can serve it.
+function syncState() {
+  invoke?.('sync_state', { json: JSON.stringify({
+    text: els.sourceText.value,
+    segments,
+    registry: registry.map(({ id, label, def }) => ({ id, label, def }))
+  }) });
 }
 
 function loadState() {
@@ -115,8 +235,11 @@ function loadState() {
     if (!saved?.segments?.length) return false;
     els.sourceText.value = saved.text ?? '';
     segments = saved.segments;
+    queue = saved.queue ?? [];
+    queueIndex = saved.queueIndex ?? 0;
     renderSegmentsUI();
     updateRegistryState();
+    updateQueueUI();
     triggerRender();
     return true;
   } catch { return false; }
@@ -182,6 +305,11 @@ const actions = {
       }, 'image/png');
     });
   },
+  'ai-open': () => els.aiDialog.showModal(),
+  'plugins': () => { loadPlugins(); els.pluginsDialog.showModal(); },
+  'reload-plugins': () => loadPlugins(true),
+  'save-library': () => saveToLibrary(),
+  'library': () => { buildLibraryUI(); els.libraryDialog.showModal(); },
   'custom-tags': () => els.customDialog.showModal(),
   'reload-custom': () => loadCustomTags(true),
   'about': () => els.aboutDialog.showModal(),
@@ -193,7 +321,11 @@ function init() {
   buildRegistryUI(registry);
   initChrome();
   loadCustomTags();
+  loadSystemFonts();
+  loadLibrary();
   els.btnParse.addEventListener('click', handleParse);
+  els.queuePrev.addEventListener('click', () => queueStep(-1));
+  els.queueNext.addEventListener('click', () => queueStep(1));
   els.registrySearch.addEventListener('input', handleSearch);
   els.btnModeImg.addEventListener('click', actions['render-image']);
   els.btnModeMd.addEventListener('click', actions['copy-md']);
@@ -212,9 +344,47 @@ function init() {
 
   els.sourceText.addEventListener('input', saveState);
 
+  // Output font prefs: restore, then re-render live on change
+  let savedFont = {};
+  try { savedFont = JSON.parse(localStorage.getItem('output-font')) || {}; } catch {}
+  if (savedFont.family) els.fontFamily.value = savedFont.family;
+  if (savedFont.size) els.fontSize.value = savedFont.size;
+  [els.fontFamily, els.fontSize].forEach(el => el.addEventListener('change', () => {
+    localStorage.setItem('output-font', JSON.stringify(outputFontPrefs()));
+    triggerRender();
+  }));
+
   // Enter in search applies the top hit to the selection
   els.registrySearch.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') els.registryContainer.querySelector('.registry-item:not(:disabled)')?.click();
+  });
+
+  // Remote commands from the localhost connector API (see src-tauri start_api)
+  window.__TAURI__?.event.listen('remote-mine', ({ payload }) => {
+    els.sourceText.value = payload;
+    handleParse();
+    setStatus('REMOTE ▸ SENTENCE MINED');
+  });
+  window.__TAURI__?.event.listen('remote-suggest', ({ payload }) => {
+    try {
+      const { suggestions } = JSON.parse(payload);
+      const shown = renderAiSuggestions(suggestions || []);
+      els.aiStatus.textContent = shown
+        ? `${shown} suggestions — review and apply.`
+        : 'No valid suggestions received.';
+      if (!els.aiDialog.open) els.aiDialog.showModal();
+      setStatus(`AI SUGGEST ▸ ${shown} RECEIVED`);
+    } catch { setStatus('AI SUGGEST ▸ BAD PAYLOAD'); }
+  });
+  window.__TAURI__?.event.listen('remote-tag', ({ payload }) => {
+    try {
+      const { text, tag } = JSON.parse(payload);
+      if (!registry.some(g => g.id === tag)) { setStatus(`REMOTE TAG ▸ UNKNOWN "${tag}"`); return; }
+      const range = findSegmentRange(text);
+      if (!range) { setStatus('REMOTE TAG ▸ WORDS NOT FOUND'); return; }
+      selectRange(range[0], range[1]);
+      assignTag(tag);
+    } catch { setStatus('REMOTE TAG ▸ BAD PAYLOAD'); }
   });
 
   if (!loadState()) handleParse();
@@ -310,6 +480,110 @@ function openSegmentMenu(x, y, index) {
     { label: 'Clear selection', fn: actions['clear-selection'] }
   );
   showContextMenu(x, y, items);
+}
+
+// ---- Plugin manager (external programs registered in plugins.toml) ----
+
+// Loading bar stays on while any plugin run is in flight (they can overlap)
+let pluginRunsActive = 0;
+
+function pluginRunStarted() {
+  pluginRunsActive++;
+  els.pluginsLoading.classList.add('on');
+}
+
+function pluginRunFinished() {
+  pluginRunsActive = Math.max(0, pluginRunsActive - 1);
+  if (pluginRunsActive === 0) els.pluginsLoading.classList.remove('on');
+}
+
+async function loadPlugins(notify = false) {
+  if (!invoke) {
+    els.pluginsList.textContent = 'Available in the desktop app only.';
+    return;
+  }
+  try {
+    const { path, plugins } = await invoke('load_plugins');
+    els.pluginsPath.textContent = path;
+    els.pluginsList.innerHTML = '';
+    if (plugins.length === 0) {
+      els.pluginsList.textContent = 'No plugins registered — add entries to the file above, then RELOAD.';
+    }
+    plugins.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'ai-row';
+      const info = document.createElement('div');
+      info.className = 'ai-info';
+      info.appendChild(makeSpan('ai-text', p.name));
+      if (p.description) info.appendChild(makeSpan('ai-reason', p.description));
+      const run = document.createElement('button');
+      run.textContent = 'RUN';
+      run.addEventListener('click', async () => {
+        run.disabled = true;
+        pluginRunStarted();
+        els.pluginsStatus.textContent = `Running ${p.name}…`;
+        try {
+          els.pluginsStatus.textContent = await invoke('run_plugin', { command: p.command });
+        } catch (err) {
+          els.pluginsStatus.textContent = `Failed: ${err}`;
+        }
+        pluginRunFinished();
+        run.disabled = false;
+      });
+      row.append(info, run);
+      els.pluginsList.appendChild(row);
+    });
+    if (notify) setStatus(`PLUGINS ▸ ${plugins.length} LOADED`);
+  } catch (err) {
+    els.pluginsStatus.textContent = `Could not load: ${err}`;
+  }
+}
+
+// ---- AI tag suggestions (pushed in by external plugins via the connector API) ----
+
+// Anchor suggestions to their words, not indices — applying one suggestion
+// merges segments and would shift every index-based reference.
+function findSegmentRange(text) {
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+  const idx = segments.map((s, i) => ({ s, i })).filter(x => !x.s.isPunctuation);
+  for (let a = 0; a <= idx.length - words.length; a++) {
+    let ok = true;
+    for (let k = 0; k < words.length; k++) {
+      if (idx[a + k].s.text.toLowerCase() !== words[k]) { ok = false; break; }
+    }
+    if (ok) return [idx[a].i, idx[a + words.length - 1].i];
+  }
+  return null;
+}
+
+function renderAiSuggestions(suggestions) {
+  els.aiResults.innerHTML = '';
+  const valid = suggestions.filter(s => registry.some(g => g.id === s.tag));
+  valid.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'ai-row';
+
+    const info = document.createElement('div');
+    info.className = 'ai-info';
+    info.appendChild(makeSpan('ai-text', s.text));
+    info.appendChild(makeSpan('ai-tag', registry.find(g => g.id === s.tag).label));
+    if (s.reason) info.appendChild(makeSpan('ai-reason', s.reason));
+
+    const btn = document.createElement('button');
+    btn.textContent = 'APPLY';
+    btn.disabled = !findSegmentRange(s.text);
+    btn.addEventListener('click', () => {
+      const range = findSegmentRange(s.text);
+      if (!range) { btn.disabled = true; setStatus('SEGMENTS CHANGED — RE-SUGGEST'); return; }
+      selectRange(range[0], range[1]);
+      assignTag(s.tag);
+      btn.disabled = true;
+    });
+
+    row.append(info, btn);
+    els.aiResults.appendChild(row);
+  });
+  return valid.length;
 }
 
 function setStatus(msg) {
@@ -473,12 +747,61 @@ function selectRange(a, b) {
   }
 }
 
+function splitSentences(text) {
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    const seg = new Intl.Segmenter('en', { granularity: 'sentence' });
+    return [...seg.segment(text)].map(s => s.segment.trim()).filter(Boolean);
+  }
+  // ponytail: naive fallback — breaks on "Mr. Smith"; Intl.Segmenter is the real path
+  return text.split(/(?<=[.!?…])\s+/).map(s => s.trim()).filter(Boolean);
+}
+
+function updateQueueUI() {
+  if (queue.length < 2) { els.queueBar.style.display = 'none'; return; }
+  els.queueBar.style.display = 'flex';
+  els.queuePos.textContent = `${queueIndex + 1} / ${queue.length}`;
+  els.queuePrev.disabled = queueIndex === 0;
+  els.queueNext.disabled = queueIndex === queue.length - 1;
+}
+
+// Step through a multi-sentence source; tagged work is kept in the library
+function queueStep(dir) {
+  const next = queueIndex + dir;
+  if (next < 0 || next >= queue.length) return;
+  if (segments.some(s => s.tag)) saveToLibrary(true);
+  queueIndex = next;
+  els.sourceText.value = queue[queueIndex];
+  mineCurrent();
+}
+
+// Mine the source box. Multi-sentence sources become a queue; re-mining the
+// sentence already in the box keeps the queue position.
 function handleParse() {
   const text = els.sourceText.value.trim();
   if (!text) return;
+  if (!(queue.length && text === queue[queueIndex])) {
+    const sentences = splitSentences(text);
+    queue = sentences.length > 1 ? sentences : [];
+    queueIndex = 0;
+    if (queue.length) els.sourceText.value = queue[0];
+  }
+  mineCurrent();
+}
+
+function mineCurrent() {
+  const raw = els.sourceText.value.trim();
+  if (!raw) return;
   if (segments.length) pushUndo();
 
-  const tokens = text.match(/[\w'-]+|[^\w\s]/g) || [];
+  // **word**[tag_id] markdown (our own export format) round-trips into tags
+  const imported = [];
+  const clean = raw.replace(/\*\*(.+?)\*\*\[([\w-]+)\]/g, (_, text, tag) => {
+    imported.push({ text, tag });
+    return text;
+  });
+  if (imported.length) els.sourceText.value = clean;
+
+  const tokens = clean.match(/[\w'-]+|[^\w\s]/g) || [];
 
   segments = tokens.map(token => ({
     text: token,
@@ -488,16 +811,39 @@ function handleParse() {
 
   selectedIndices.clear();
   lastClickedIndex = null;
+
+  let applied = 0;
+  for (const { text, tag } of imported) {
+    if (!registry.some(g => g.id === tag)) continue;
+    const range = findSegmentRange(text);
+    if (!range) continue;
+    selectRange(range[0], range[1]);
+    applyTagToSelection(tag);
+    applied++;
+  }
+
   renderSegmentsUI();
   updateRegistryState();
+  updateQueueUI();
   showOutputView('placeholder');
-  setStatus(`MINED ${segments.length} SEGMENTS`);
+  if (applied) triggerRender();
+  setStatus(applied
+    ? `MINED ${segments.length} SEGMENTS · ${applied} TAGS IMPORTED`
+    : `MINED ${segments.length} SEGMENTS`);
 }
 
 function assignTag(tagId) {
   if (selectedIndices.size === 0) return;
   pushUndo();
+  applyTagToSelection(tagId);
+  renderSegmentsUI();
+  updateRegistryState();
+  setStatus(`TAGGED ▸ ${tagId.toUpperCase()}`);
+  triggerRender();
+}
 
+// State change only — caller owns undo, render, and status.
+function applyTagToSelection(tagId) {
   const indices = Array.from(selectedIndices).sort((a, b) => a - b);
   const minIdx = indices[0];
   const maxIdx = indices[indices.length - 1];
@@ -532,11 +878,6 @@ function assignTag(tagId) {
 
   selectedIndices.clear();
   lastClickedIndex = null;
-
-  renderSegmentsUI();
-  updateRegistryState();
-  setStatus(`TAGGED ▸ ${tagId.toUpperCase()}`);
-  triggerRender();
 }
 
 function showOutputView(view) {
@@ -567,12 +908,14 @@ function exportText(formatTagged, view, statusLabel) {
 async function triggerRender() {
   if (segments.length === 0 || els.textOutputArea.style.display === 'block') return;
 
-  const fontSize = 38, tagSize = 20, padX = 40, padY = 40, spacing = 15;
+  const { family, size } = outputFontPrefs();
+  const fontSize = size, tagSize = Math.max(12, Math.round(size * 0.53)), padX = 40, padY = 40, spacing = 15;
   const maxLineWidth = 1200; // wrap long sentences instead of one endless strip
   const rowHeight = fontSize + 9 + tagSize + 5 + 30;
-  const font = `${fontSize}px 'VT323'`;
-  const tagFont = `${tagSize}px 'VT323'`;
+  const font = `${fontSize}px '${family}'`;
+  const tagFont = `${tagSize}px '${family}'`;
   await document.fonts.load(font); // measure with the real font, not the fallback
+  if (!document.fonts.check(font)) setStatus(`FONT "${family.toUpperCase()}" NOT FOUND — USING FALLBACK`);
 
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -620,6 +963,8 @@ async function triggerRender() {
 
   els.previewImage.src = canvas.toDataURL('image/png');
   lastCanvas = canvas;
+  // Mirror the PNG to the Rust side so plugins can GET /render
+  invoke?.('sync_render', { pngBase64: els.previewImage.src.split(',')[1] });
   showOutputView('image');
 }
 
