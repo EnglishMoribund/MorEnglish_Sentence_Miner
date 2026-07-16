@@ -604,9 +604,11 @@ category = "My Tags"</pre>
     <dialog id="ai-dialog">
       <h2>AI TAG SUGGESTIONS</h2>
       <p>AI is an optional add-on: run a suggest plugin (PLUGINS ▸ Plugin manager) while the app is open, and its suggestions appear here for review.</p>
+      <div id="ai-loading" class="loading-bar"></div>
       <p id="ai-status"></p>
       <div id="ai-results"></div>
       <div class="dialog-actions">
+        <button data-action="ai-apply-all" class="btn-primary">APPLY ALL</button>
         <button data-action="close-dialog">CLOSE</button>
       </div>
     </dialog>

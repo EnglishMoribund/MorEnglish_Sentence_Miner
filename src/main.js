@@ -46,6 +46,7 @@ const els = {
   customPath: document.getElementById('custom-path'),
   customStatus: document.getElementById('custom-status'),
   aiDialog: document.getElementById('ai-dialog'),
+  aiLoading: document.getElementById('ai-loading'),
   aiStatus: document.getElementById('ai-status'),
   pluginsDialog: document.getElementById('plugins-dialog'),
   pluginsPath: document.getElementById('plugins-path'),
@@ -341,6 +342,28 @@ const actions = {
     } catch (err) { setStatus(`SAVE FAILED — ${err}`); }
   },
   'ai-open': () => els.aiDialog.showModal(),
+  'ai-apply-all': () => {
+    if (!lastSuggestions.some(s => findSegmentRange(s.text))) {
+      els.aiStatus.textContent = 'Nothing applicable to apply.';
+      return;
+    }
+    pushUndo(); // the whole batch is one undo step
+    let applied = 0;
+    for (const s of lastSuggestions) {
+      // re-anchor each time — applying a suggestion merges segments and shifts ranges
+      const range = findSegmentRange(s.text);
+      if (!range) continue;
+      selectRange(range[0], range[1]);
+      applyTagToSelection(s.tag);
+      applied++;
+    }
+    renderSegmentsUI();
+    updateRegistryState();
+    triggerRender();
+    renderAiSuggestions(lastSuggestions); // refresh rows so stale APPLY buttons disable
+    els.aiStatus.textContent = `Applied ${applied} of ${lastSuggestions.length} suggestions.`;
+    setStatus(`AI ▸ APPLIED ${applied}`);
+  },
   'plugins': () => { loadPlugins(); els.pluginsDialog.showModal(); },
   'reload-plugins': () => loadPlugins(true),
   'save-library': () => saveToLibrary(),
@@ -525,11 +548,15 @@ let pluginRunsActive = 0;
 function pluginRunStarted() {
   pluginRunsActive++;
   els.pluginsLoading.classList.add('on');
+  els.aiLoading.classList.add('on'); // suggest plugins land here — show progress in both dialogs
 }
 
 function pluginRunFinished() {
   pluginRunsActive = Math.max(0, pluginRunsActive - 1);
-  if (pluginRunsActive === 0) els.pluginsLoading.classList.remove('on');
+  if (pluginRunsActive === 0) {
+    els.pluginsLoading.classList.remove('on');
+    els.aiLoading.classList.remove('on');
+  }
 }
 
 async function loadPlugins(notify = false) {
@@ -591,9 +618,12 @@ function findSegmentRange(text) {
   return null;
 }
 
+let lastSuggestions = [];
+
 function renderAiSuggestions(suggestions) {
   els.aiResults.innerHTML = '';
   const valid = suggestions.filter(s => registry.some(g => g.id === s.tag));
+  lastSuggestions = valid;
   valid.forEach(s => {
     const row = document.createElement('div');
     row.className = 'ai-row';
