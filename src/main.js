@@ -290,9 +290,11 @@ const actions = {
       lastCanvas.toBlob(async (blob) => {
         try {
           if (invoke) {
+            const path = await pickSavePath('sentence-diagram.png', 'PNG image', 'png');
+            if (!path && window.__TAURI__?.dialog) { setStatus('SAVE CANCELLED'); return; }
             const bytes = Array.from(new Uint8Array(await blob.arrayBuffer()));
-            const path = await invoke('save_png', { data: bytes });
-            setStatus(`SAVED ▸ ${path}`);
+            const saved = await invoke('save_png', { data: bytes, path });
+            setStatus(`SAVED ▸ ${saved}`);
           } else {
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
@@ -304,6 +306,39 @@ const actions = {
         } catch (err) { setStatus(`SAVE FAILED — ${err}`); }
       }, 'image/png');
     });
+  },
+  'save-svg': async () => {
+    if (segments.length === 0) { setStatus('NOTHING TO SAVE'); return; }
+    try {
+      const svg = diagramSvg(await computeDiagram());
+      await saveTextAs('sentence-diagram.svg', 'SVG image', 'svg', 'image/svg+xml', svg);
+    } catch (err) { setStatus(`SAVE FAILED — ${err}`); }
+  },
+  'copy-image': () => {
+    if (segments.length === 0) { setStatus('NOTHING TO COPY'); return; }
+    showOutputView('image');
+    triggerRender().then(() => {
+      if (!lastCanvas) return;
+      lastCanvas.toBlob(async (blob) => {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          setStatus('COPIED ▸ IMAGE');
+        } catch {
+          setStatus('CLIPBOARD IMAGES UNSUPPORTED HERE — USE SAVE PNG');
+        }
+      }, 'image/png');
+    });
+  },
+  'copy-cloze': () => {
+    let i = 0;
+    exportText(seg => `{{c${++i}::${seg.text}::${seg.tag.replace(/_/g, ' ')}}}`, 'cloze', 'COPIED ▸ CLOZE');
+  },
+  'export-csv': async () => {
+    const csv = libraryCsv();
+    if (!csv.includes('\r\n')) { setStatus('NOTHING TO EXPORT — TAG SOMETHING FIRST'); return; }
+    try {
+      await saveTextAs('sentence-miner.csv', 'CSV', 'csv', 'text/csv', csv);
+    } catch (err) { setStatus(`SAVE FAILED — ${err}`); }
   },
   'ai-open': () => els.aiDialog.showModal(),
   'plugins': () => { loadPlugins(); els.pluginsDialog.showModal(); },
@@ -881,13 +916,55 @@ function applyTagToSelection(tagId) {
 }
 
 function showOutputView(view) {
-  const isText = view === 'markdown' || view === 'ruby';
+  const isText = view === 'markdown' || view === 'ruby' || view === 'cloze';
   els.previewPlaceholder.style.display = view === 'placeholder' ? 'block' : 'none';
   els.previewImage.style.display = view === 'image' ? 'block' : 'none';
   els.textOutputArea.style.display = isText ? 'block' : 'none';
   els.btnModeImg.classList.toggle('btn-primary', view === 'image' || view === 'placeholder');
   els.btnModeMd.classList.toggle('btn-primary', view === 'markdown');
   els.btnModeRuby.classList.toggle('btn-primary', view === 'ruby');
+}
+
+// Native save-as dialog; null means unavailable (browser) or cancelled.
+async function pickSavePath(defaultName, filterName, ext) {
+  const dialog = window.__TAURI__?.dialog;
+  if (!dialog) return null;
+  return dialog.save({ defaultPath: defaultName, filters: [{ name: filterName, extensions: [ext] }] });
+}
+
+// Save text through the dialog in the app, or a download in the browser.
+async function saveTextAs(defaultName, filterName, ext, mime, text) {
+  if (invoke && window.__TAURI__?.dialog) {
+    const path = await pickSavePath(defaultName, filterName, ext);
+    if (!path) { setStatus('SAVE CANCELLED'); return; }
+    await invoke('save_text_file', { path, text });
+    setStatus(`SAVED ▸ ${path}`);
+  } else {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+    a.download = defaultName;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('SAVED ▸ DOWNLOAD');
+  }
+}
+
+// One CSV row per tagged segment across the whole library (Anki-importable);
+// falls back to the current sentence when the library is empty.
+function libraryCsv() {
+  const byId = Object.fromEntries(registry.map(g => [g.id, g]));
+  const entries = library.length
+    ? library
+    : (segments.some(s => s.tag) ? [{ text: els.sourceText.value.trim(), segments }] : []);
+  const rows = [['term', 'tag', 'tag label', 'definition', 'sentence']];
+  for (const e of entries) {
+    for (const s of e.segments) {
+      if (!s.tag) continue;
+      const g = byId[s.tag];
+      rows.push([s.text, s.tag, g?.label ?? s.tag.replace(/_/g, ' '), g?.def ?? '', e.text]);
+    }
+  }
+  return rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
 }
 
 function exportText(formatTagged, view, statusLabel) {
@@ -903,11 +980,9 @@ function exportText(formatTagged, view, statusLabel) {
     .catch(() => setStatus('CLIPBOARD BLOCKED — TEXT SHOWN BELOW'));
 }
 
-// Draws the diagram with the Canvas 2D API — silver text, gold underline,
-// cyan tag label on the abyss background, all in the app's VT323 face.
-async function triggerRender() {
-  if (segments.length === 0 || els.textOutputArea.style.display === 'block') return;
-
+// Measures and lays out the diagram — silver text, gold underline, cyan tag
+// label on the abyss background. Shared by the canvas (PNG) and SVG renderers.
+async function computeDiagram() {
   const { family, size } = outputFontPrefs();
   const fontSize = size, tagSize = Math.max(12, Math.round(size * 0.53)), padX = 40, padY = 40, spacing = 15;
   const maxLineWidth = 1200; // wrap long sentences instead of one endless strip
@@ -935,17 +1010,29 @@ async function triggerRender() {
     return pos;
   });
 
-  canvas.width = Math.ceil(maxX - spacing + padX); // resizing resets ctx state
-  canvas.height = padY + fontSize + row * rowHeight + 9 + tagSize + 5 + padY;
+  return {
+    canvas, ctx, layout, family, font, tagFont, fontSize, tagSize, padY, rowHeight,
+    width: Math.ceil(maxX - spacing + padX),
+    height: padY + fontSize + row * rowHeight + 9 + tagSize + 5 + padY
+  };
+}
+
+async function triggerRender() {
+  if (segments.length === 0 || els.textOutputArea.style.display === 'block') return;
+  const d = await computeDiagram();
+  const { canvas, ctx } = d;
+
+  canvas.width = d.width; // resizing resets ctx state
+  canvas.height = d.height;
   ctx.fillStyle = '#050510';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (const { x, row: r, slot, w, tagW, seg } of layout) {
-    const baseY = padY + fontSize + r * rowHeight;
+  for (const { x, row: r, slot, w, tagW, seg } of d.layout) {
+    const baseY = d.padY + d.fontSize + r * d.rowHeight;
     const lineY = baseY + 9;
-    const tagY = lineY + tagSize + 5;
+    const tagY = lineY + d.tagSize + 5;
 
-    ctx.font = font;
+    ctx.font = d.font;
     ctx.fillStyle = '#d8d8e8';
     ctx.fillText(seg.text, x + (slot - w) / 2, baseY);
 
@@ -955,7 +1042,7 @@ async function triggerRender() {
       ctx.moveTo(x, lineY);
       ctx.lineTo(x + slot, lineY);
       ctx.stroke();
-      ctx.font = tagFont;
+      ctx.font = d.tagFont;
       ctx.fillStyle = '#7df9ff';
       ctx.fillText(seg.tag.replace(/_/g, ' '), x + (slot - tagW) / 2, tagY);
     }
@@ -966,6 +1053,29 @@ async function triggerRender() {
   // Mirror the PNG to the Rust side so plugins can GET /render
   invoke?.('sync_render', { pngBase64: els.previewImage.src.split(',')[1] });
   showOutputView('image');
+}
+
+// Same layout as the canvas renderer, as a standalone SVG. SVG text baselines
+// match canvas fillText, so coordinates carry over 1:1.
+function diagramSvg(d) {
+  const escXml = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const fam = `${escXml(d.family)}, monospace`;
+  const parts = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${d.width}" height="${d.height}" viewBox="0 0 ${d.width} ${d.height}">`,
+    '<rect width="100%" height="100%" fill="#050510"/>'
+  ];
+  for (const { x, row: r, slot, w, tagW, seg } of d.layout) {
+    const baseY = d.padY + d.fontSize + r * d.rowHeight;
+    const lineY = baseY + 9;
+    const tagY = lineY + d.tagSize + 5;
+    parts.push(`<text x="${(x + (slot - w) / 2).toFixed(1)}" y="${baseY}" font-family="${fam}" font-size="${d.fontSize}" fill="#d8d8e8">${escXml(seg.text)}</text>`);
+    if (seg.tag) {
+      parts.push(`<line x1="${x.toFixed(1)}" y1="${lineY}" x2="${(x + slot).toFixed(1)}" y2="${lineY}" stroke="#e8c547"/>`);
+      parts.push(`<text x="${(x + (slot - tagW) / 2).toFixed(1)}" y="${tagY}" font-family="${fam}" font-size="${d.tagSize}" fill="#7df9ff">${escXml(seg.tag.replace(/_/g, ' '))}</text>`);
+    }
+  }
+  parts.push('</svg>');
+  return parts.join('\n');
 }
 
 init();

@@ -62,22 +62,32 @@ fn list_fonts() -> Vec<String> {
     families
 }
 
-// ponytail: saves straight to Pictures with a timestamped name — a native
-// save-as dialog needs the dialog plugin; add it if people ask to pick paths.
+// Saves to the given path (from the native save dialog); with no path,
+// falls back to Pictures with a timestamped name.
 #[tauri::command]
-fn save_png(app: tauri::AppHandle, data: Vec<u8>) -> Result<String, String> {
-    let dir = app
-        .path()
-        .picture_dir()
-        .or_else(|_| app.path().home_dir())
-        .map_err(|e| e.to_string())?;
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|e| e.to_string())?
-        .as_secs();
-    let path = dir.join(format!("sentence-diagram-{stamp}.png"));
+fn save_png(app: tauri::AppHandle, data: Vec<u8>, path: Option<String>) -> Result<String, String> {
+    let path = match path {
+        Some(p) => std::path::PathBuf::from(p),
+        None => {
+            let dir = app
+                .path()
+                .picture_dir()
+                .or_else(|_| app.path().home_dir())
+                .map_err(|e| e.to_string())?;
+            let stamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|e| e.to_string())?
+                .as_secs();
+            dir.join(format!("sentence-diagram-{stamp}.png"))
+        }
+    };
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
     Ok(path.display().to_string())
+}
+
+#[tauri::command]
+fn save_text_file(path: String, text: String) -> Result<(), String> {
+    std::fs::write(path, text).map_err(|e| e.to_string())
 }
 
 // Latest UI state, mirrored from the webview via sync_state so the
@@ -367,6 +377,7 @@ mod tests {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(SyncedState(Mutex::new("{}".into())))
         .manage(LastRender(Mutex::new(String::new())))
         .setup(|app| {
@@ -377,6 +388,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_custom_registry,
             save_png,
+            save_text_file,
             list_fonts,
             sync_state,
             sync_render,
