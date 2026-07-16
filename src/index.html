@@ -453,6 +453,12 @@
       }
       @keyframes loading-scan { to { left: 100%; } }
       @keyframes loading-blink { 50% { opacity: 0.45; } }
+      .flash-done {
+        animation: done-flash 0.4s steps(2) 4; /* ~1.6s of retro strobing */
+      }
+      @keyframes done-flash {
+        50% { color: var(--abyss); background: var(--gold); text-shadow: none; }
+      }
       #ai-results, #library-list, #plugins-list {
         text-align: left;
         max-height: 300px; overflow-y: auto;

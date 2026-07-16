@@ -659,6 +659,12 @@ function pluginRunFinished() {
     els.pluginsLoading.classList.remove('on');
     els.aiLoading.classList.remove('on');
   }
+  // finished-state flash on the status lines in both dialogs
+  for (const el of [els.pluginsStatus, els.aiStatus]) {
+    el.classList.remove('flash-done');
+    void el.offsetWidth; // restart the animation if a previous flash just ran
+    el.classList.add('flash-done');
+  }
 }
 
 async function loadPlugins(notify = false) {
