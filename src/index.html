@@ -409,11 +409,14 @@
         background: var(--abyss); border: 1px solid var(--ridge-dark);
         cursor: pointer;
       }
-      .style-grid select {
+      .style-grid select,
+      .style-grid input[type="text"],
+      .style-grid input[type="number"] {
         background: var(--abyss); color: var(--text-main);
         border: 1px solid var(--ridge-dark);
         font-family: var(--font-body); font-size: 1.1rem;
-        padding: 0.25rem;
+        padding: 0.25rem 0.4rem;
+        width: 100%; box-sizing: border-box;
       }
       #plugins-status { min-height: 1.2em; color: var(--gold); margin: 0.75rem 0; white-space: pre-wrap; }
       .loading-bar {
@@ -579,24 +582,10 @@
           <label>Output</label>
           <div class="output-controls">
             <button id="btn-mode-img" class="btn-primary">RENDER</button>
+            <button data-action="diagram-style">STYLE…</button>
             <button data-action="save-png">SAVE PNG</button>
             <button id="btn-mode-md">COPY MARKDOWN</button>
             <button id="btn-mode-ruby">COPY RUBY</button>
-          </div>
-          <div class="output-options">
-            <span class="opt-label">FONT</span>
-            <input type="text" id="font-family" list="font-list" placeholder="VT323" title="Any font installed on your system">
-            <datalist id="font-list">
-              <option value="VT323"></option>
-              <option value="Press Start 2P"></option>
-              <option value="Georgia"></option>
-              <option value="Times New Roman"></option>
-              <option value="Courier New"></option>
-              <option value="Verdana"></option>
-              <option value="Comic Sans MS"></option>
-            </datalist>
-            <span class="opt-label">SIZE</span>
-            <input type="number" id="font-size" min="16" max="96" step="2" value="38">
           </div>
           <div id="preview-container">
             <span id="preview-placeholder">Diagram render will appear here...</span>
@@ -650,6 +639,19 @@ category = "My Tags"</pre>
       <p>Changes re-render live and apply to PNG, SVG, clipboard, and plugin exports.</p>
       <div id="style-presets"></div>
       <div class="style-grid">
+        <label for="font-family">Font</label>
+        <input type="text" id="font-family" list="font-list" placeholder="VT323" title="Any font installed on your system">
+        <datalist id="font-list">
+          <option value="VT323"></option>
+          <option value="Press Start 2P"></option>
+          <option value="Georgia"></option>
+          <option value="Times New Roman"></option>
+          <option value="Courier New"></option>
+          <option value="Verdana"></option>
+          <option value="Comic Sans MS"></option>
+        </datalist>
+        <label for="font-size">Size</label>
+        <input type="number" id="font-size" min="16" max="96" step="2" value="38">
         <label for="style-bg-mode">Background</label>
         <select id="style-bg-mode">
           <option value="solid">Solid</option>
