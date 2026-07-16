@@ -295,6 +295,10 @@
         text-transform: uppercase; letter-spacing: 0.1em;
         margin-top: 0.35rem;
         text-shadow: 1px 1px 0 #000;
+        /* full labels can be long — wrap onto extra lines instead of widening the chip */
+        max-width: 22ch;
+        line-height: 1.5;
+        white-space: normal;
       }
 
       /* ---- Output ---- */

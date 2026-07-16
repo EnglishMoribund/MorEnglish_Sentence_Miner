@@ -207,6 +207,11 @@ function wiktionaryLookup(term) {
   setStatus(`WIKTIONARY ▸ ${term.toUpperCase()}`);
 }
 
+// Human label for a tag id ("verb_intrans" → "intransitive verb")
+function tagLabel(id) {
+  return registry.find(g => g.id === id)?.label ?? id.replace(/_/g, ' ');
+}
+
 function selectedTerm() {
   return Array.from(selectedIndices).sort((a, b) => a - b).map(i => segments[i].text).join(' ');
 }
@@ -378,7 +383,7 @@ const actions = {
     setStatus('STYLE ▸ RESET');
   },
   'copy-md': () => exportText(seg => `**${seg.text}**[${seg.tag}]`, 'markdown', 'COPIED ▸ MARKDOWN'),
-  'copy-ruby': () => exportText(seg => `<ruby>${seg.text}<rt style="color: #e8c547;">${seg.tag}</rt></ruby>`, 'ruby', 'COPIED ▸ RUBY HTML'),
+  'copy-ruby': () => exportText(seg => `<ruby>${seg.text}<rt style="color: #e8c547;">${tagLabel(seg.tag)}</rt></ruby>`, 'ruby', 'COPIED ▸ RUBY HTML'),
   'save-png': () => {
     if (segments.length === 0) { setStatus('NOTHING TO SAVE'); return; }
     showOutputView('image');
@@ -428,7 +433,7 @@ const actions = {
   },
   'copy-cloze': () => {
     let i = 0;
-    exportText(seg => `{{c${++i}::${seg.text}::${seg.tag.replace(/_/g, ' ')}}}`, 'cloze', 'COPIED ▸ CLOZE');
+    exportText(seg => `{{c${++i}::${seg.text}::${tagLabel(seg.tag)}}}`, 'cloze', 'COPIED ▸ CLOZE');
   },
   'export-csv': async () => {
     const csv = libraryCsv();
@@ -855,7 +860,7 @@ function renderSegmentsUI() {
     } else {
       box.className = `segment-box ${selectedIndices.has(index) ? 'active' : ''}`;
       box.appendChild(makeSpan('segment-text', seg.text));
-      if (seg.tag) box.appendChild(makeSpan('segment-tag', seg.tag.replace(/_/g, ' ')));
+      if (seg.tag) box.appendChild(makeSpan('segment-tag', tagLabel(seg.tag)));
 
       // Mousedown: Starts drag, handles Shift-Click or standard Click
       box.addEventListener('mousedown', (e) => {
@@ -1140,7 +1145,7 @@ async function computeDiagram() {
     ctx.font = font;
     const w = ctx.measureText(seg.text).width;
     ctx.font = tagFont;
-    const tagW = seg.tag ? ctx.measureText(seg.tag.replace(/_/g, ' ')).width : 0;
+    const tagW = seg.tag ? ctx.measureText(tagLabel(seg.tag)).width : 0;
     const slot = Math.max(w, tagW);
     if (seg.isPunctuation && cursorX > padX) cursorX -= spacing; // punctuation hugs the previous word, never wraps alone
     else if (cursorX > padX && cursorX + slot > maxLineWidth) { row++; cursorX = padX; }
@@ -1193,7 +1198,7 @@ async function triggerRender() {
       ctx.stroke();
       ctx.font = d.tagFont;
       ctx.fillStyle = diagramStyle.tag;
-      ctx.fillText(seg.tag.replace(/_/g, ' '), x + (slot - tagW) / 2, tagY);
+      ctx.fillText(tagLabel(seg.tag), x + (slot - tagW) / 2, tagY);
     }
   }
 
@@ -1227,7 +1232,7 @@ function diagramSvg(d) {
     parts.push(`<text x="${(x + (slot - w) / 2).toFixed(1)}" y="${baseY}" font-family="${fam}" font-size="${d.fontSize}" fill="${diagramStyle.text}">${escXml(seg.text)}</text>`);
     if (seg.tag) {
       parts.push(`<line x1="${x.toFixed(1)}" y1="${lineY}" x2="${(x + slot).toFixed(1)}" y2="${lineY}" stroke="${diagramStyle.line}"/>`);
-      parts.push(`<text x="${(x + (slot - tagW) / 2).toFixed(1)}" y="${tagY}" font-family="${fam}" font-size="${d.tagSize}" fill="${diagramStyle.tag}">${escXml(seg.tag.replace(/_/g, ' '))}</text>`);
+      parts.push(`<text x="${(x + (slot - tagW) / 2).toFixed(1)}" y="${tagY}" font-family="${fam}" font-size="${d.tagSize}" fill="${diagramStyle.tag}">${escXml(tagLabel(seg.tag))}</text>`);
     }
   }
   parts.push('</svg>');

@@ -35,8 +35,9 @@ export function buildPost(segments, registry, pngBase64) {
   // Same ruby markup as the app's "Copy as HTML" export
   let ruby = '';
   segments.forEach((seg, i) => {
+    const label = seg.tag ? (byId[seg.tag]?.label ?? seg.tag.replace(/_/g, ' ')) : '';
     const word = seg.tag
-      ? `<ruby>${esc(seg.text)}<rt style="color: #e8c547;">${esc(seg.tag.replace(/_/g, ' '))}</rt></ruby>`
+      ? `<ruby>${esc(seg.text)}<rt style="color: #e8c547;">${esc(label)}</rt></ruby>`
       : esc(seg.text);
     ruby += (seg.isPunctuation || i === 0) ? word : ` ${word}`;
   });
