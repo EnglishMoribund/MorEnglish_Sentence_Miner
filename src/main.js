@@ -75,6 +75,54 @@ async function loadSystemFonts() {
   } catch { /* keep the static fallback list */ }
 }
 
+// ---- Diagram style (colors + background mode, persisted, live re-render) ----
+
+const DEFAULT_STYLE = {
+  mode: 'solid',        // solid | gradient | transparent
+  bg1: '#050510',
+  bg2: '#2a1a4a',       // gradient end — deep space purple
+  text: '#d8d8e8',
+  line: '#e8c547',
+  tag: '#7df9ff'
+};
+let diagramStyle = { ...DEFAULT_STYLE };
+
+function loadDiagramStyle() {
+  try { diagramStyle = { ...DEFAULT_STYLE, ...JSON.parse(localStorage.getItem('diagram-style')) }; } catch {}
+}
+
+function styleInputs() {
+  return {
+    mode: document.getElementById('style-bg-mode'),
+    bg1: document.getElementById('style-bg1'),
+    bg2: document.getElementById('style-bg2'),
+    text: document.getElementById('style-text'),
+    line: document.getElementById('style-line'),
+    tag: document.getElementById('style-tag')
+  };
+}
+
+function syncStyleControls() {
+  const ins = styleInputs();
+  for (const [key, el] of Object.entries(ins)) el.value = diagramStyle[key];
+  // bg color rows only make sense for their modes
+  document.querySelectorAll('[data-style-row="bg1"]').forEach(el =>
+    el.style.display = diagramStyle.mode === 'transparent' ? 'none' : '');
+  document.querySelectorAll('[data-style-row="bg2"]').forEach(el =>
+    el.style.display = diagramStyle.mode === 'gradient' ? '' : 'none');
+}
+
+function bindStyleControls() {
+  for (const [key, el] of Object.entries(styleInputs())) {
+    el.addEventListener('input', () => {
+      diagramStyle[key] = el.value;
+      localStorage.setItem('diagram-style', JSON.stringify(diagramStyle));
+      syncStyleControls();
+      triggerRender();
+    });
+  }
+}
+
 function outputFontPrefs() {
   const family = els.fontFamily.value.trim().replace(/["']/g, '') || 'VT323';
   const size = Math.min(96, Math.max(16, parseInt(els.fontSize.value, 10) || 38));
@@ -281,6 +329,19 @@ const actions = {
     setStatus('ALL TAGS CLEARED');
   },
   'render-image': () => { showOutputView('image'); triggerRender(); },
+  'diagram-style': () => {
+    syncStyleControls();
+    showOutputView('image');
+    triggerRender();
+    document.getElementById('style-dialog').showModal();
+  },
+  'style-reset': () => {
+    diagramStyle = { ...DEFAULT_STYLE };
+    localStorage.setItem('diagram-style', JSON.stringify(diagramStyle));
+    syncStyleControls();
+    triggerRender();
+    setStatus('STYLE ▸ RESET');
+  },
   'copy-md': () => exportText(seg => `**${seg.text}**[${seg.tag}]`, 'markdown', 'COPIED ▸ MARKDOWN'),
   'copy-ruby': () => exportText(seg => `<ruby>${seg.text}<rt style="color: #e8c547;">${seg.tag}</rt></ruby>`, 'ruby', 'COPIED ▸ RUBY HTML'),
   'save-png': () => {
@@ -381,6 +442,8 @@ function init() {
   loadCustomTags();
   loadSystemFonts();
   loadLibrary();
+  loadDiagramStyle();
+  bindStyleControls();
   els.btnParse.addEventListener('click', handleParse);
   els.queuePrev.addEventListener('click', () => queueStep(-1));
   els.queueNext.addEventListener('click', () => queueStep(1));
@@ -1054,8 +1117,17 @@ async function triggerRender() {
 
   canvas.width = d.width; // resizing resets ctx state
   canvas.height = d.height;
-  ctx.fillStyle = '#050510';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (diagramStyle.mode !== 'transparent') {
+    if (diagramStyle.mode === 'gradient') {
+      const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      g.addColorStop(0, diagramStyle.bg1);
+      g.addColorStop(1, diagramStyle.bg2);
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = diagramStyle.bg1;
+    }
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   for (const { x, row: r, slot, w, tagW, seg } of d.layout) {
     const baseY = d.padY + d.fontSize + r * d.rowHeight;
@@ -1063,17 +1135,17 @@ async function triggerRender() {
     const tagY = lineY + d.tagSize + 5;
 
     ctx.font = d.font;
-    ctx.fillStyle = '#d8d8e8';
+    ctx.fillStyle = diagramStyle.text;
     ctx.fillText(seg.text, x + (slot - w) / 2, baseY);
 
     if (seg.tag) {
-      ctx.strokeStyle = '#e8c547';
+      ctx.strokeStyle = diagramStyle.line;
       ctx.beginPath();
       ctx.moveTo(x, lineY);
       ctx.lineTo(x + slot, lineY);
       ctx.stroke();
       ctx.font = d.tagFont;
-      ctx.fillStyle = '#7df9ff';
+      ctx.fillStyle = diagramStyle.tag;
       ctx.fillText(seg.tag.replace(/_/g, ' '), x + (slot - tagW) / 2, tagY);
     }
   }
@@ -1091,17 +1163,24 @@ function diagramSvg(d) {
   const escXml = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const fam = `${escXml(d.family)}, monospace`;
   const parts = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${d.width}" height="${d.height}" viewBox="0 0 ${d.width} ${d.height}">`,
-    '<rect width="100%" height="100%" fill="#050510"/>'
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${d.width}" height="${d.height}" viewBox="0 0 ${d.width} ${d.height}">`
   ];
+  if (diagramStyle.mode === 'gradient') {
+    parts.push(
+      `<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${diagramStyle.bg1}"/><stop offset="1" stop-color="${diagramStyle.bg2}"/></linearGradient></defs>`,
+      '<rect width="100%" height="100%" fill="url(#bg)"/>'
+    );
+  } else if (diagramStyle.mode !== 'transparent') {
+    parts.push(`<rect width="100%" height="100%" fill="${diagramStyle.bg1}"/>`);
+  }
   for (const { x, row: r, slot, w, tagW, seg } of d.layout) {
     const baseY = d.padY + d.fontSize + r * d.rowHeight;
     const lineY = baseY + 9;
     const tagY = lineY + d.tagSize + 5;
-    parts.push(`<text x="${(x + (slot - w) / 2).toFixed(1)}" y="${baseY}" font-family="${fam}" font-size="${d.fontSize}" fill="#d8d8e8">${escXml(seg.text)}</text>`);
+    parts.push(`<text x="${(x + (slot - w) / 2).toFixed(1)}" y="${baseY}" font-family="${fam}" font-size="${d.fontSize}" fill="${diagramStyle.text}">${escXml(seg.text)}</text>`);
     if (seg.tag) {
-      parts.push(`<line x1="${x.toFixed(1)}" y1="${lineY}" x2="${(x + slot).toFixed(1)}" y2="${lineY}" stroke="#e8c547"/>`);
-      parts.push(`<text x="${(x + (slot - tagW) / 2).toFixed(1)}" y="${tagY}" font-family="${fam}" font-size="${d.tagSize}" fill="#7df9ff">${escXml(seg.tag.replace(/_/g, ' '))}</text>`);
+      parts.push(`<line x1="${x.toFixed(1)}" y1="${lineY}" x2="${(x + slot).toFixed(1)}" y2="${lineY}" stroke="${diagramStyle.line}"/>`);
+      parts.push(`<text x="${(x + (slot - tagW) / 2).toFixed(1)}" y="${tagY}" font-family="${fam}" font-size="${d.tagSize}" fill="${diagramStyle.tag}">${escXml(seg.tag.replace(/_/g, ' '))}</text>`);
     }
   }
   parts.push('</svg>');

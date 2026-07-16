@@ -384,6 +384,26 @@
       #ai-dialog { max-width: 560px; }
       #ai-status { min-height: 1.2em; color: var(--gold); margin: 0.75rem 0; }
       #plugins-dialog { max-width: 560px; }
+      .style-grid {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.6rem 1.2rem;
+        align-items: center;
+        text-align: left;
+        margin: 1.25rem 0 1.5rem;
+      }
+      .style-grid label { color: var(--gold); }
+      .style-grid input[type="color"] {
+        width: 100%; height: 28px; padding: 2px;
+        background: var(--abyss); border: 1px solid var(--ridge-dark);
+        cursor: pointer;
+      }
+      .style-grid select {
+        background: var(--abyss); color: var(--text-main);
+        border: 1px solid var(--ridge-dark);
+        font-family: var(--font-body); font-size: 1.1rem;
+        padding: 0.25rem;
+      }
       #plugins-status { min-height: 1.2em; color: var(--gold); margin: 0.75rem 0; white-space: pre-wrap; }
       .loading-bar {
         display: none;
@@ -491,6 +511,7 @@
         <button class="menu-btn">EXPORT</button>
         <div class="menu-drop panel">
           <button data-action="render-image">Render image</button>
+          <button data-action="diagram-style">Diagram style…</button>
           <button data-action="copy-image">Copy image</button>
           <button data-action="save-png">Save image as PNG…</button>
           <button data-action="save-svg">Save image as SVG…</button>
@@ -609,6 +630,33 @@ category = "My Tags"</pre>
       <div id="ai-results"></div>
       <div class="dialog-actions">
         <button data-action="ai-apply-all" class="btn-primary">APPLY ALL</button>
+        <button data-action="close-dialog">CLOSE</button>
+      </div>
+    </dialog>
+
+    <dialog id="style-dialog">
+      <h2>DIAGRAM STYLE</h2>
+      <p>Changes re-render live and apply to PNG, SVG, clipboard, and plugin exports.</p>
+      <div class="style-grid">
+        <label for="style-bg-mode">Background</label>
+        <select id="style-bg-mode">
+          <option value="solid">Solid</option>
+          <option value="gradient">Gradient</option>
+          <option value="transparent">Transparent</option>
+        </select>
+        <label for="style-bg1" data-style-row="bg1">Color</label>
+        <input type="color" id="style-bg1" data-style-row="bg1">
+        <label for="style-bg2" data-style-row="bg2">Gradient end</label>
+        <input type="color" id="style-bg2" data-style-row="bg2">
+        <label for="style-text">Text</label>
+        <input type="color" id="style-text">
+        <label for="style-line">Underline</label>
+        <input type="color" id="style-line">
+        <label for="style-tag">Tag label</label>
+        <input type="color" id="style-tag">
+      </div>
+      <div class="dialog-actions">
+        <button data-action="style-reset">RESET</button>
         <button data-action="close-dialog">CLOSE</button>
       </div>
     </dialog>
