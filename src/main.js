@@ -644,10 +644,13 @@ function openSegmentMenu(x, y, index) {
 // Loading bar stays on while any plugin run is in flight (they can overlap)
 let pluginRunsActive = 0;
 
-function pluginRunStarted() {
+function pluginRunStarted(name) {
   pluginRunsActive++;
-  els.pluginsLoading.classList.add('on');
-  els.aiLoading.classList.add('on'); // suggest plugins land here — show progress in both dialogs
+  const label = `▸ RUNNING ${name.toUpperCase()}…`;
+  for (const bar of [els.pluginsLoading, els.aiLoading]) {
+    bar.dataset.label = label; // suggest plugins land in the AI dialog — show progress in both
+    bar.classList.add('on');
+  }
 }
 
 function pluginRunFinished() {
@@ -681,7 +684,8 @@ async function loadPlugins(notify = false) {
       run.textContent = 'RUN';
       run.addEventListener('click', async () => {
         run.disabled = true;
-        pluginRunStarted();
+        run.textContent = 'WORKING';
+        pluginRunStarted(p.name);
         els.pluginsStatus.textContent = `Running ${p.name}…`;
         try {
           els.pluginsStatus.textContent = await invoke('run_plugin', { command: p.command });
@@ -689,6 +693,7 @@ async function loadPlugins(notify = false) {
           els.pluginsStatus.textContent = `Failed: ${err}`;
         }
         pluginRunFinished();
+        run.textContent = 'RUN';
         run.disabled = false;
       });
       row.append(info, run);

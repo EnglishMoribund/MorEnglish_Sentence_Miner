@@ -425,20 +425,34 @@
       #plugins-status { min-height: 1.2em; color: var(--gold); margin: 0.75rem 0; white-space: pre-wrap; }
       .loading-bar {
         display: none;
-        height: 12px; margin: 0.75rem 0;
-        border: 1px solid var(--ridge-dark);
+        height: 28px; margin: 0.75rem 0;
+        border: 2px solid var(--gold);
+        border-radius: 4px;
         background: var(--abyss);
         position: relative; overflow: hidden;
+        box-shadow: 0 0 10px rgba(232,197,71,.25);
       }
       .loading-bar.on { display: block; }
       .loading-bar::after {
         content: '';
-        position: absolute; top: 1px; bottom: 1px; left: -30%;
+        position: absolute; top: 2px; bottom: 2px; left: -30%;
         width: 30%;
-        background: var(--gold);
+        background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold));
         animation: loading-scan 1.1s steps(14) infinite;
       }
+      .loading-bar::before {
+        content: attr(data-label);
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-family: var(--font-chrome); font-size: 0.5rem;
+        letter-spacing: 0.15em;
+        color: var(--cyan);
+        text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+        z-index: 1;
+        animation: loading-blink 1s steps(2) infinite;
+      }
       @keyframes loading-scan { to { left: 100%; } }
+      @keyframes loading-blink { 50% { opacity: 0.45; } }
       #ai-results, #library-list, #plugins-list {
         text-align: left;
         max-height: 300px; overflow-y: auto;
