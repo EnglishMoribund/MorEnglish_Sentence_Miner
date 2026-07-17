@@ -237,6 +237,42 @@
       }
       button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
       .btn-primary { border-color: var(--gold); color: var(--gold); }
+      .btn-quiet {
+        border-color: var(--ridge-dark);
+        color: var(--text-muted);
+        background: linear-gradient(180deg, #14143a, #0a0a22);
+      }
+      .btn-quiet:hover:not(:disabled) {
+        border-color: var(--cyan);
+        color: var(--cyan);
+        box-shadow: 0 0 10px rgba(125,249,255,.2);
+      }
+
+      /* Mining source header: label + inline CLEAR */
+      .source-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        margin-bottom: 0.35rem;
+      }
+      .source-head label { margin: 0; }
+      .source-head .btn-tiny {
+        padding: 0.28rem 0.55rem;
+        font-size: 0.45rem;
+        letter-spacing: 0.1em;
+        flex: none;
+      }
+      .mine-actions {
+        display: flex;
+        gap: 0.6rem;
+        margin-top: 0.6rem;
+      }
+      .mine-actions #btn-parse { flex: 1 1 auto; margin-top: 0; }
+      .mine-actions .btn-new {
+        flex: 0 0 auto;
+        min-width: 5.5rem;
+      }
 
       /* ---- Grammar Registry ---- */
       #registry-container { height: 440px; overflow-y: auto; border: 2px solid var(--ridge-dark); border-radius: 4px; background: var(--abyss); }
@@ -457,41 +493,87 @@
         width: 100%; box-sizing: border-box;
       }
       #plugins-status { min-height: 1.2em; color: var(--gold); margin: 0.75rem 0; white-space: pre-wrap; }
+      /* Plugin / AI busy: determinate-feeling fill + scan + label (always readable) */
       .loading-bar {
         display: none;
-        height: 28px; margin: 0.75rem 0;
+        height: 36px; margin: 0.75rem 0;
         border: 2px solid var(--gold);
         border-radius: 4px;
         background: var(--abyss);
         position: relative; overflow: hidden;
-        box-shadow: 0 0 10px rgba(232,197,71,.25);
+        box-shadow: 0 0 12px rgba(232,197,71,.35), inset 0 0 12px rgba(125,249,255,.08);
+        --pct: 8%;
       }
       .loading-bar.on { display: block; }
-      .loading-bar::after {
-        content: '';
-        position: absolute; top: 2px; bottom: 2px; left: -30%;
-        width: 30%;
-        background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold));
-        animation: loading-scan 1.1s steps(14) infinite;
+      .loading-bar .loading-fill {
+        position: absolute; left: 0; top: 0; bottom: 0;
+        width: var(--pct);
+        max-width: 100%;
+        background: linear-gradient(180deg, rgba(232,197,71,.55), rgba(232,197,71,.22));
+        transition: width 0.25s linear;
+        z-index: 0;
       }
-      .loading-bar::before {
-        content: attr(data-label);
+      .loading-bar .loading-fill::after {
+        content: '';
+        position: absolute; top: 0; bottom: 0; right: -18%;
+        width: 40%;
+        background: linear-gradient(90deg, transparent, rgba(125,249,255,.55), transparent);
+        animation: loading-scan 1.2s linear infinite;
+      }
+      .loading-bar .loading-label {
         position: absolute; inset: 0;
         display: flex; align-items: center; justify-content: center;
-        font-family: var(--font-chrome); font-size: 0.5rem;
-        letter-spacing: 0.15em;
+        gap: 0.5rem;
+        font-family: var(--font-chrome); font-size: 0.55rem;
+        letter-spacing: 0.12em;
         color: var(--cyan);
         text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
         z-index: 1;
-        animation: loading-blink 1s steps(2) infinite;
+        padding: 0 0.5rem;
+        text-align: center;
       }
-      @keyframes loading-scan { to { left: 100%; } }
-      @keyframes loading-blink { 50% { opacity: 0.45; } }
+      .loading-bar .loading-label .loading-spin {
+        display: inline-block;
+        animation: loading-blink 0.9s steps(2) infinite;
+      }
+      @keyframes loading-scan {
+        from { transform: translateX(-120%); }
+        to { transform: translateX(220%); }
+      }
+      @keyframes loading-blink { 50% { opacity: 0.35; } }
       .flash-done {
         animation: done-flash 0.4s steps(2) 4; /* ~1.6s of retro strobing */
       }
       @keyframes done-flash {
         50% { color: var(--abyss); background: var(--gold); text-shadow: none; }
+      }
+      /* Always-visible strip above the status bar while a plugin runs */
+      #global-loading {
+        display: none;
+        flex: none;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px 12px 4px;
+        background: linear-gradient(180deg, #181848, #0a0a28);
+        border-top: 2px solid var(--gold);
+        box-shadow: 0 -4px 18px rgba(0,0,0,.45);
+      }
+      #global-loading.on { display: flex; }
+      #global-loading .loading-bar {
+        display: block;
+        margin: 0;
+        height: 28px;
+      }
+      #global-loading-hint {
+        font-family: var(--font-chrome);
+        font-size: 0.42rem;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        text-align: center;
+      }
+      #statusbar.busy #status-msg {
+        color: var(--gold);
+        animation: loading-blink 1.1s steps(2) infinite;
       }
       #ai-results, #library-list, #plugins-list {
         text-align: left;
@@ -749,6 +831,7 @@
         <button class="menu-btn">FILE</button>
         <div class="menu-drop panel">
           <button data-action="parse">Mine sentence <kbd>Ctrl+Enter</kbd></button>
+          <button data-action="new-slate">New blank slate <kbd>Ctrl+N</kbd></button>
           <button data-action="clear-source">Clear source</button>
           <button data-action="save-library">Save to library</button>
           <button data-action="library">Library…</button>
@@ -803,9 +886,15 @@
     <main>
       <div class="col">
         <div class="panel panel-block">
-          <label for="source-text">Mining source</label>
-          <textarea id="source-text" rows="5">Antioch Abbas, the legendary kung-fu master of the Musaceae style, departed betimes, wielding a lethiferous banana, ready to take out the terrorists terrorizing the citizens of Plovdiv at sparrowfart with their flatulence.</textarea>
-          <button id="btn-parse" class="btn-primary" style="width: 100%; margin-top: 0.6rem;">⛏ MINE SENTENCE</button>
+          <div class="source-head">
+            <label for="source-text">Mining source</label>
+            <button type="button" data-action="clear-source" class="btn-quiet btn-tiny" title="Clear source text, segments, tags, and queue (Ctrl+N)">CLEAR</button>
+          </div>
+          <textarea id="source-text" rows="5" placeholder="Paste a sentence (or several) to mine…"></textarea>
+          <div class="mine-actions">
+            <button id="btn-parse" class="btn-primary">⛏ MINE SENTENCE</button>
+            <button type="button" data-action="new-slate" class="btn-quiet btn-new" title="Start over: empty source, no segments, no queue (Ctrl+N)">NEW</button>
+          </div>
           <div id="queue-bar" style="display: none; gap: 0.6rem; align-items: center; margin-top: 0.6rem;">
             <button id="queue-prev" style="flex: 1;">◂ PREV</button>
             <span id="queue-pos" style="color: var(--text-muted); white-space: nowrap;"></span>
@@ -844,6 +933,13 @@
       </div>
     </main>
 
+    <div id="global-loading" aria-live="polite" aria-busy="false">
+      <div class="loading-bar on" id="global-loading-bar">
+        <div class="loading-fill"></div>
+        <div class="loading-label"><span class="loading-spin">⛏</span> <span class="loading-text">PLUGIN RUNNING…</span></div>
+      </div>
+      <div id="global-loading-hint">AI plugins can take a while — keep the app open</div>
+    </div>
     <footer id="statusbar">
       <span id="status-msg">READY</span>
       <span class="stat">SEG <b id="stat-seg">0</b></span>
@@ -873,8 +969,11 @@ category = "My Tags"</pre>
 
     <dialog id="ai-dialog">
       <h2>AI TAG SUGGESTIONS</h2>
-      <p>AI is an optional add-on: run a suggest plugin (PLUGINS ▸ Plugin manager) while the app is open, and its suggestions appear here for review.</p>
-      <div id="ai-loading" class="loading-bar"></div>
+      <p>AI is an optional add-on: run a suggest plugin (PLUGINS ▸ Plugin manager) while the app is open. A loading bar shows while the plugin thinks; suggestions appear here for review.</p>
+      <div id="ai-loading" class="loading-bar" aria-live="polite">
+        <div class="loading-fill"></div>
+        <div class="loading-label"><span class="loading-spin">⛏</span> <span class="loading-text">WAITING FOR SUGGESTIONS…</span></div>
+      </div>
       <p id="ai-status"></p>
       <div id="ai-results"></div>
       <div class="dialog-actions">
@@ -928,9 +1027,12 @@ category = "My Tags"</pre>
       <h2>PLUGIN MANAGER</h2>
       <p>Plugins are external programs that drive the app through its local API — AI suggestions, exporters, anything. Register commands in the file below, then run them from here.</p>
       <p><code id="plugins-path"></code></p>
-      <div id="plugins-list"></div>
-      <div id="plugins-loading" class="loading-bar"></div>
+      <div id="plugins-loading" class="loading-bar" aria-live="polite">
+        <div class="loading-fill"></div>
+        <div class="loading-label"><span class="loading-spin">⛏</span> <span class="loading-text">RUNNING PLUGIN…</span></div>
+      </div>
       <p id="plugins-status"></p>
+      <div id="plugins-list"></div>
       <div class="dialog-actions">
         <button data-action="open-plugins-file" class="btn-primary">OPEN FILE</button>
         <button data-action="ai-open">LAST SUGGESTIONS</button>
@@ -952,6 +1054,7 @@ category = "My Tags"</pre>
       <h2>KEYBOARD SHORTCUTS</h2>
       <div class="shortcuts-list">
         <span><kbd class="key">Ctrl</kbd>+<kbd class="key">Enter</kbd></span><span>Mine sentence</span>
+        <span><kbd class="key">Ctrl</kbd>+<kbd class="key">N</kbd></span><span>New blank slate</span>
         <span><kbd class="key">Ctrl</kbd>+<kbd class="key">Z</kbd></span><span>Undo</span>
         <span><kbd class="key">Ctrl</kbd>+<kbd class="key">A</kbd></span><span>Select all segments</span>
         <span><kbd class="key">Enter</kbd></span><span>In search: apply top tag hit</span>

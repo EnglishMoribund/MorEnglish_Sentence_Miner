@@ -54,6 +54,9 @@ const els = {
   pluginsLoading: document.getElementById('plugins-loading'),
   pluginsStatus: document.getElementById('plugins-status'),
   aiResults: document.getElementById('ai-results'),
+  globalLoading: document.getElementById('global-loading'),
+  globalLoadingBar: document.getElementById('global-loading-bar'),
+  statusbar: document.getElementById('statusbar'),
   fontFamily: document.getElementById('font-family'),
   fontSize: document.getElementById('font-size')
 };
@@ -345,20 +348,39 @@ function loadState() {
   } catch { return false; }
 }
 
+// Wipe source, segments, multi-sentence queue, selection, and preview.
+// Undoable so a mis-click is recoverable. Focuses the source box for paste.
+function startBlankSlate(status = 'NEW SLATE') {
+  if (els.sourceText.value || segments.length || queue.length) pushUndo();
+  els.sourceText.value = '';
+  segments = [];
+  queue = [];
+  queueIndex = 0;
+  selectedIndices.clear();
+  lastClickedIndex = null;
+  lastCanvas = null;
+  lastSuggestions = [];
+  if (els.aiResults) els.aiResults.innerHTML = '';
+  if (els.aiStatus) els.aiStatus.textContent = '';
+  if (els.textOutputArea) els.textOutputArea.value = '';
+  if (els.previewImage) {
+    els.previewImage.removeAttribute('src');
+    els.previewImage.style.display = 'none';
+  }
+  renderSegmentsUI();
+  updateRegistryState();
+  updateQueueUI();
+  showOutputView('placeholder');
+  saveState();
+  els.sourceText.focus();
+  setStatus(status);
+}
+
 const actions = {
   'parse': handleParse,
   'undo': undo,
-  'clear-source': () => {
-    pushUndo();
-    els.sourceText.value = '';
-    segments = [];
-    selectedIndices.clear();
-    lastClickedIndex = null;
-    renderSegmentsUI();
-    updateRegistryState();
-    showOutputView('placeholder');
-    setStatus('SOURCE CLEARED');
-  },
+  'clear-source': () => startBlankSlate('SOURCE CLEARED'),
+  'new-slate': () => startBlankSlate('NEW SLATE'),
   'exit': () => appWindow?.close(),
   'select-all': () => {
     segments.forEach((seg, i) => { if (!seg.isPunctuation) selectedIndices.add(i); });
@@ -544,10 +566,17 @@ function init() {
     try {
       const { suggestions } = JSON.parse(payload);
       const shown = renderAiSuggestions(suggestions || []);
+      // Still waiting on the plugin process, or finished mid-flight — either way,
+      // show the review UI immediately so the user sees results arrive.
       els.aiStatus.textContent = shown
         ? `${shown} suggestions — review and apply.`
         : 'No valid suggestions received.';
       if (!els.aiDialog.open) els.aiDialog.showModal();
+      if (pluginRunsActive > 0) {
+        updatePluginProgressUi(`▸ SUGGESTIONS ARRIVED — FINISHING ${pluginActiveName || 'PLUGIN'}…`);
+      } else {
+        setPluginProgressPct(100);
+      }
       setStatus(`AI SUGGEST ▸ ${shown} RECEIVED`);
     } catch { setStatus('AI SUGGEST ▸ BAD PAYLOAD'); }
   });
@@ -620,6 +649,11 @@ function initChrome() {
       closeMenus(); hideContextMenu(); actions['clear-selection']();
     }
     if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); handleParse(); }
+    // Ctrl+N / Ctrl+Shift+Backspace — new blank slate (works even while typing in source)
+    if (e.ctrlKey && !e.altKey && (e.key.toLowerCase() === 'n' || (e.shiftKey && e.key === 'Backspace'))) {
+      e.preventDefault();
+      actions['new-slate']();
+    }
     if (e.ctrlKey && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); undo(); }
     if (e.ctrlKey && e.key.toLowerCase() === 'a' && !typing) { e.preventDefault(); actions['select-all'](); }
     if (e.key === 'F1') { e.preventDefault(); els.shortcutsDialog.showModal(); }
@@ -673,23 +707,111 @@ function openSegmentMenu(x, y, index) {
 
 // ---- Plugin manager (external programs registered in plugins.toml) ----
 
-// Loading bar stays on while any plugin run is in flight (they can overlap)
+// Loading UI stays on while any plugin run is in flight (they can overlap).
+// Bars: plugin dialog, AI dialog (for suggest plugins), and a global strip
+// above the status bar so the main window always shows work in progress.
 let pluginRunsActive = 0;
+let pluginActiveName = '';
+let pluginRunStartedAt = 0;
+let pluginProgressTimer = null;
+let pluginElapsedTimer = null;
+let pluginProgressPct = 0;
 
-function pluginRunStarted(name) {
-  pluginRunsActive++;
-  const label = `▸ RUNNING ${name.toUpperCase()}…`;
-  for (const bar of [els.pluginsLoading, els.aiLoading]) {
-    bar.dataset.label = label; // suggest plugins land in the AI dialog — show progress in both
-    bar.classList.add('on');
+function isSuggestPlugin(plugin) {
+  const hay = `${plugin?.name || ''} ${plugin?.command || ''} ${plugin?.description || ''}`;
+  return /suggest|ollama|anthropic|claude|grok|gemini|openai|llm|ai\b/i.test(hay);
+}
+
+function pluginLoadingBars() {
+  return [els.pluginsLoading, els.aiLoading, els.globalLoadingBar].filter(Boolean);
+}
+
+function setPluginProgressPct(pct) {
+  pluginProgressPct = Math.max(0, Math.min(100, pct));
+  const value = `${pluginProgressPct.toFixed(1)}%`;
+  for (const bar of pluginLoadingBars()) {
+    bar.style.setProperty('--pct', value);
   }
 }
 
-function pluginRunFinished() {
+function updatePluginProgressUi(label) {
+  for (const bar of pluginLoadingBars()) {
+    const text = bar.querySelector('.loading-text');
+    if (text) text.textContent = label;
+    else bar.dataset.label = label; // fallback if markup is old
+  }
+}
+
+function pluginRunStarted(plugin) {
+  const name = typeof plugin === 'string' ? plugin : (plugin?.name || 'plugin');
+  pluginRunsActive++;
+  pluginActiveName = name;
+  pluginRunStartedAt = Date.now();
+  clearInterval(pluginProgressTimer);
+  clearInterval(pluginElapsedTimer);
+  setPluginProgressPct(6);
+
+  const openAi = typeof plugin === 'object' && isSuggestPlugin(plugin);
+  if (openAi) {
+    els.aiResults.innerHTML = '';
+    lastSuggestions = [];
+    els.aiStatus.textContent = `Waiting on ${name}… suggestions will appear here.`;
+    if (!els.aiDialog.open) els.aiDialog.showModal();
+  }
+
+  for (const bar of [els.pluginsLoading, els.aiLoading]) {
+    // AI bar only lights for suggest-style plugins (or if already open/waiting)
+    if (bar === els.aiLoading && !openAi && !els.aiDialog.open) continue;
+    bar.classList.add('on');
+  }
+  els.globalLoading?.classList.add('on');
+  els.globalLoading?.setAttribute('aria-busy', 'true');
+  els.statusbar?.classList.add('busy');
+
+  const tickLabel = () => {
+    const secs = Math.max(0, Math.floor((Date.now() - pluginRunStartedAt) / 1000));
+    const clock = secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
+    updatePluginProgressUi(`▸ RUNNING ${name.toUpperCase()}… ${clock}`);
+    // Sticky status — setStatus would clear to READY after 3s, which hides the wait
+    els.statusMsg.textContent = `PLUGIN ▸ ${name.toUpperCase()}… ${clock}`;
+    clearTimeout(statusTimeout);
+  };
+  tickLabel();
+  pluginElapsedTimer = setInterval(tickLabel, 500);
+
+  // Asymptotic fill toward ~90% so a long Ollama/Claude wait still feels alive
+  pluginProgressTimer = setInterval(() => {
+    const elapsed = (Date.now() - pluginRunStartedAt) / 1000;
+    // slow early climb, then crawls toward 90
+    const target = 90 * (1 - Math.exp(-elapsed / 18));
+    setPluginProgressPct(Math.max(pluginProgressPct, 6 + target));
+  }, 200);
+}
+
+function pluginRunFinished(ok = true) {
   pluginRunsActive = Math.max(0, pluginRunsActive - 1);
   if (pluginRunsActive === 0) {
-    els.pluginsLoading.classList.remove('on');
-    els.aiLoading.classList.remove('on');
+    clearInterval(pluginProgressTimer);
+    clearInterval(pluginElapsedTimer);
+    pluginProgressTimer = null;
+    pluginElapsedTimer = null;
+    setPluginProgressPct(100);
+    const name = pluginActiveName || 'plugin';
+    const secs = Math.max(0, Math.floor((Date.now() - pluginRunStartedAt) / 1000));
+    updatePluginProgressUi(ok ? `▸ ${name.toUpperCase()} DONE` : `▸ ${name.toUpperCase()} FAILED`);
+    els.statusbar?.classList.remove('busy');
+    // Allow setStatus to schedule READY again now that the run is over
+    setStatus(ok ? `PLUGIN ▸ ${name.toUpperCase()} DONE (${secs}s)` : `PLUGIN ▸ ${name.toUpperCase()} FAILED`);
+    // brief hold on 100% so the user sees completion, then hide
+    setTimeout(() => {
+      if (pluginRunsActive > 0) return;
+      els.pluginsLoading.classList.remove('on');
+      els.aiLoading.classList.remove('on');
+      els.globalLoading?.classList.remove('on');
+      els.globalLoading?.setAttribute('aria-busy', 'false');
+      setPluginProgressPct(0);
+      pluginActiveName = '';
+    }, 650);
   }
   // finished-state flash on the status lines in both dialogs
   for (const el of [els.pluginsStatus, els.aiStatus]) {
@@ -722,15 +844,19 @@ async function loadPlugins(notify = false) {
       run.textContent = 'RUN';
       run.addEventListener('click', async () => {
         run.disabled = true;
-        run.textContent = 'WORKING';
-        pluginRunStarted(p.name);
-        els.pluginsStatus.textContent = `Running ${p.name}…`;
+        run.textContent = 'WORKING…';
+        pluginRunStarted(p);
+        els.pluginsStatus.textContent = isSuggestPlugin(p)
+          ? `Running ${p.name}… watch the loading bar (and AI dialog) for progress.`
+          : `Running ${p.name}…`;
+        let ok = true;
         try {
           els.pluginsStatus.textContent = await invoke('run_plugin', { command: p.command });
         } catch (err) {
+          ok = false;
           els.pluginsStatus.textContent = `Failed: ${err}`;
         }
-        pluginRunFinished();
+        pluginRunFinished(ok);
         run.textContent = 'RUN';
         run.disabled = false;
       });
@@ -794,8 +920,11 @@ function renderAiSuggestions(suggestions) {
 }
 
 function setStatus(msg) {
+  // Don't clobber the live plugin countdown with a 3s READY flash
+  if (pluginRunsActive > 0 && !/^PLUGIN\b|^AI SUGGEST\b/.test(msg)) return;
   els.statusMsg.textContent = msg;
   clearTimeout(statusTimeout);
+  if (pluginRunsActive > 0) return;
   statusTimeout = setTimeout(() => { els.statusMsg.textContent = 'READY'; }, 3000);
 }
 

@@ -4,7 +4,11 @@ AI and integrations are **not built into the app** — they're external
 programs that drive it through the [[Connector API]]. The PLUGINS ▸
 **Plugin manager…** dialog runs commands registered in `plugins.toml`
 (same pattern as custom tags): a RUN button per plugin, a loading bar with
-the plugin's name while it works, and the exit output when it finishes.
+the plugin's name and elapsed time while it works (also mirrored on the
+status bar and a strip above it), and the exit output when it finishes.
+Suggest-style plugins (Ollama, Claude/Anthropic, Grok CLI, etc.) also open
+the **AI TAG SUGGESTIONS** dialog with its own loading bar so you can watch
+progress until results arrive.
 
 ```toml
 [[plugin]]
