@@ -1,0 +1,23 @@
+# Local machine
+local.properties
+.gradle/
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Build outputs
+app/build/
+build/
+*.apk
+*.aab
+*.ap_
+
+# Synced from repo root src/ on each build
+app/src/main/assets/
+
+# Signing (generate locally — see README)
+keystore.jks
+*.jks
+*.keystore

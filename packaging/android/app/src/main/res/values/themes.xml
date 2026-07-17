@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SentenceMiner" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:statusBarColor">#050510</item>
+        <item name="android:navigationBarColor">#050510</item>
+        <item name="android:windowBackground">#050510</item>
+        <item name="android:colorPrimary">#e8c547</item>
+        <item name="android:colorPrimaryDark">#050510</item>
+        <item name="android:colorAccent">#7df9ff</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

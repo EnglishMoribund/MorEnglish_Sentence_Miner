@@ -1,0 +1,81 @@
+plugins {
+    id 'com.android.application'
+}
+
+def appVersion = '0.3.1'
+def appVersionCode = 301
+
+android {
+    namespace 'com.sentence.miner'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.sentence.miner'
+        minSdk 24
+        targetSdk 35
+        versionCode appVersionCode
+        versionName appVersion
+    }
+
+    signingConfigs {
+        release {
+            // Sideload keystore checked into packaging/android/ (FOSS distribute key).
+            // Rebuilds must use the same keystore so updates install over previous APKs.
+            def ks = file('../keystore.jks')
+            if (ks.exists()) {
+                storeFile ks
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: 'sentence-miner'
+                keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'sentence-miner'
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: 'sentence-miner'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (signingConfigs.release.storeFile?.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+}
+
+// Sync the web UI into app/src/main/assets before each assemble.
+// Path is relative to this module dir (packaging/android/app/).
+tasks.register('syncWebAssets', Copy) {
+    from('../../../src') {
+        include 'index.html'
+        include 'main.js'
+        include 'registry.js'
+        include 'app-icon.png'
+        include 'fonts/**'
+    }
+    into('src/main/assets')
+}
+
+tasks.named('preBuild').configure { dependsOn('syncWebAssets') }
+
+configurations.configureEach {
+    resolutionStrategy {
+        // appcompat / webkit pull mismatched kotlin-stdlib-jdk* versions
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24'
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.webkit:webkit:1.12.1'
+}

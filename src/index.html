@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>MorEnglish Sentence Miner</title>
     <style>
       /* Vendored fonts — the app works offline and the canvas renderer
@@ -39,15 +39,27 @@
 
       * { box-sizing: border-box; }
 
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
       body {
         margin: 0;
         height: 100vh;
+        height: 100dvh;
         display: flex;
         flex-direction: column;
         background: var(--abyss);
         color: var(--text-main);
         font-family: var(--font-body);
         overflow: hidden;
+        /* notched phones / home indicator */
+        padding:
+          env(safe-area-inset-top, 0)
+          env(safe-area-inset-right, 0)
+          env(safe-area-inset-bottom, 0)
+          env(safe-area-inset-left, 0);
       }
 
       /* CRT scanlines over everything */
@@ -80,9 +92,13 @@
         user-select: none;
         flex: none;
       }
-      .tb-left { display: flex; align-items: center; gap: 10px; height: 100%; flex: 1; }
+      .tb-left { display: flex; align-items: center; gap: 10px; height: 100%; flex: 1; min-width: 0; }
       .tb-icon { width: 20px; height: 20px; image-rendering: pixelated; pointer-events: none; }
-      .tb-title { font-family: var(--font-chrome); font-size: 0.6rem; color: var(--gold); letter-spacing: 0.15em; text-shadow: 2px 2px 0 #000; pointer-events: none; }
+      .tb-title {
+        font-family: var(--font-chrome); font-size: 0.6rem; color: var(--gold);
+        letter-spacing: 0.15em; text-shadow: 2px 2px 0 #000; pointer-events: none;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+      }
       .tb-controls { display: flex; height: 100%; }
       .tb-controls button {
         width: 44px; height: 100%;
@@ -311,8 +327,8 @@
       }
 
       /* ---- Output ---- */
-      .output-controls { display: flex; gap: 0.75rem; margin-bottom: 0.9rem; }
-      .output-controls button { flex: 1; }
+      .output-controls { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.9rem; }
+      .output-controls button { flex: 1 1 auto; min-width: 0; }
       .output-options { display: flex; gap: 0.6rem; align-items: center; margin-bottom: 0.9rem; }
       .output-options .opt-label {
         font-family: var(--font-chrome); font-size: 0.5rem;
@@ -370,6 +386,11 @@
       dialog h2 { font-family: var(--font-chrome); font-size: 0.7rem; color: var(--gold); letter-spacing: 0.15em; }
       dialog .gem { font-size: 2rem; color: var(--gem); }
       dialog p { color: var(--text-muted); margin: 0.75rem 0 1.25rem; }
+      #about-dialog { max-width: 480px; text-align: left; }
+      #about-dialog h2, #about-dialog .gem { text-align: center; }
+      #about-dialog p { margin: 0.5rem 0; line-height: 1.35; }
+      #about-dialog p:first-of-type { text-align: center; margin-top: 0.75rem; }
+      #about-dialog button { display: block; margin: 1.25rem auto 0; }
       #shortcuts-dialog { max-width: 440px; }
       #custom-dialog { max-width: 460px; }
       #custom-dialog code {
@@ -517,6 +538,196 @@
 
       @media (prefers-reduced-motion: reduce) {
         * { transition: none !important; animation: none !important; }
+      }
+
+      /* Touch: no hover — keep wiki / interactive chrome visible */
+      @media (hover: none) {
+        .reg-wiki { opacity: 1; }
+        .menu-btn { min-height: 44px; }
+        button { min-height: 40px; }
+        .segment-box { min-height: 44px; padding: 0.5rem 0.7rem; }
+        .registry-item { padding-top: 0.65rem; padding-bottom: 0.65rem; }
+      }
+
+      /* ---- Responsive: tablet / narrow desktop ---- */
+      @media (max-width: 960px) {
+        main {
+          grid-template-columns: 1fr;
+          padding: 0.75rem;
+          gap: 0.75rem;
+        }
+        .col { gap: 0.75rem; }
+        #registry-container { height: min(360px, 42vh); }
+        #preview-container { min-height: 220px; }
+        .output-controls button { flex: 1 1 calc(50% - 0.75rem); }
+        dialog {
+          width: calc(100vw - 2rem);
+          max-width: min(560px, calc(100vw - 2rem));
+          max-height: calc(100dvh - 2rem);
+          overflow-y: auto;
+          margin: auto;
+        }
+        #about-dialog,
+        #ai-dialog,
+        #plugins-dialog,
+        #library-dialog,
+        #custom-dialog,
+        #shortcuts-dialog { max-width: min(560px, calc(100vw - 2rem)); }
+      }
+
+      /* ---- Responsive: phone ---- */
+      @media (max-width: 600px) {
+        #titlebar {
+          height: 42px;
+          padding-left: 8px;
+        }
+        .tb-title {
+          font-size: 0.42rem;
+          letter-spacing: 0.06em;
+        }
+        .tb-get-app {
+          font-size: 0.42rem;
+          padding: 0 10px;
+          letter-spacing: 0.06em;
+          white-space: nowrap;
+        }
+        .tb-controls button { width: 40px; }
+
+        #menubar {
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        #menubar::-webkit-scrollbar { display: none; }
+        .menu-btn {
+          padding: 10px 11px;
+          font-size: 0.48rem;
+          white-space: nowrap;
+        }
+        .menu-drop {
+          min-width: min(260px, calc(100vw - 1rem));
+          max-width: calc(100vw - 1rem);
+        }
+        /* pin trailing menus so they don't spill off the right edge */
+        .menu:nth-last-child(-n+2) .menu-drop {
+          left: auto;
+          right: 0;
+        }
+        /* shortcuts less useful on touch; reclaim width */
+        .menu-drop kbd { display: none; }
+        .menu-drop button, #context-menu button {
+          gap: 8px;
+          padding: 10px 12px 10px 22px;
+          font-size: 1.2rem;
+        }
+
+        main {
+          padding: 0.55rem;
+          gap: 0.55rem;
+        }
+        .col { gap: 0.55rem; }
+        .panel-block { padding: 0.7rem; }
+
+        label { font-size: 0.45rem; margin-bottom: 0.45rem; }
+        textarea, input { font-size: 1.2rem; padding: 0.55rem; }
+        /* iOS zooms inputs under 16px — keep body VT323 large enough */
+        #source-text { font-size: 1.15rem; }
+        button {
+          font-size: 0.5rem;
+          padding: 0.55rem 0.65rem;
+        }
+
+        #registry-container { height: min(280px, 38vh); }
+        .reg-label { font-size: 1.15rem; }
+        .reg-def { font-size: 0.95rem; }
+
+        #segments-container {
+          padding: 0.7rem;
+          gap: 0.4rem;
+          min-height: 96px;
+        }
+        .segment-text { font-size: 1.35rem; }
+        .segment-tag {
+          font-size: 0.4rem;
+          max-width: 16ch;
+        }
+
+        .output-controls { gap: 0.5rem; margin-bottom: 0.65rem; }
+        .output-controls button {
+          flex: 1 1 calc(50% - 0.5rem);
+        }
+        #preview-container {
+          min-height: 160px;
+          padding: 0.65rem;
+        }
+        #preview-placeholder { font-size: 1.1rem; text-align: center; }
+        #text-output-area { height: 160px; }
+
+        #statusbar {
+          height: auto;
+          min-height: 28px;
+          flex-wrap: wrap;
+          gap: 0.35rem 0.75rem;
+          padding: 5px 8px;
+          font-size: 0.42rem;
+        }
+        #status-msg {
+          flex: 1 1 100%;
+          order: -1;
+        }
+        .sb-version { margin-left: auto; }
+
+        dialog {
+          width: calc(100vw - 1rem);
+          max-width: calc(100vw - 1rem);
+          max-height: calc(100dvh - 1rem);
+          padding: 1rem 0.85rem;
+          font-size: 1.15rem;
+        }
+        dialog h2 { font-size: 0.55rem; letter-spacing: 0.1em; }
+        .dialog-actions {
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+        .dialog-actions button {
+          flex: 1 1 calc(50% - 0.5rem);
+        }
+        .style-grid {
+          grid-template-columns: 1fr;
+          gap: 0.35rem 0;
+        }
+        .style-grid label { margin-bottom: 0; margin-top: 0.35rem; }
+        .style-grid label:first-child { margin-top: 0; }
+        .shortcuts-list {
+          grid-template-columns: 1fr;
+          gap: 0.15rem 0;
+          margin: 0.85rem 0 1rem;
+        }
+        .shortcuts-list > span:nth-child(odd) {
+          margin-top: 0.55rem;
+        }
+        .shortcuts-list > span:first-child { margin-top: 0; }
+        .ai-row {
+          flex-wrap: wrap;
+          align-items: flex-start;
+        }
+        .ai-row > button { width: 100%; }
+        #ai-results, #library-list, #plugins-list {
+          max-height: min(240px, 40vh);
+        }
+        #context-menu {
+          max-width: calc(100vw - 1rem);
+          min-width: min(230px, calc(100vw - 1rem));
+        }
+      }
+
+      /* Very small phones */
+      @media (max-width: 380px) {
+        .tb-title { font-size: 0.36rem; letter-spacing: 0.04em; }
+        .output-controls button { flex: 1 1 100%; }
+        .dialog-actions button { flex: 1 1 100%; }
+        #statusbar .stat { letter-spacing: 0.04em; }
       }
     </style>
   </head>
@@ -759,6 +970,8 @@ category = "My Tags"</pre>
       <div class="gem">◆</div>
       <h2>MORENGLISH SENTENCE MINER</h2>
       <p><span class="app-version">v0.3.1</span> — mine English sentences, tag their grammar, forge diagrams.</p>
+      <p>A retro FF7-styled desktop app for English grammar analysis. Paste or clip a sentence, split it into segments, tag words and phrases from a searchable grammar registry, then export diagrams, Markdown, HTML ruby, or study decks.</p>
+      <p>Optional AI plugins (Ollama, Anthropic, or any CLI), a local sentence library, custom tags, and a loopback connector API / MCP server for scripts and agents. AI suggestions are always reviewed before they apply.</p>
       <button data-action="close-dialog">CLOSE</button>
     </dialog>
 

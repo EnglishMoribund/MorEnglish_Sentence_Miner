@@ -5,7 +5,7 @@ No install needed to try it: the
 runs in your browser (plugins/AI, the library, and custom tags are
 desktop-only).
 
-Prebuilt x86_64 packages ship on the
+Prebuilt packages ship on the
 [releases page](https://github.com/EnglishMoribund/MorEnglish_Sentence_Miner/releases).
 
 | Platform | Install |
@@ -14,9 +14,18 @@ Prebuilt x86_64 packages ship on the
 | Fedora / openSUSE | `sudo rpm -i morenglish-sentence-miner-<ver>-1.x86_64.rpm` |
 | Arch | `sudo pacman -U morenglish-sentence-miner-bin-<ver>-1-x86_64.pkg.tar.zst` |
 | Windows | run `morenglish-sentence-miner_<ver>_x64-setup.exe` |
+| Android | install `morenglish-sentence-miner_<ver>_android.apk` (sideload; allow unknown apps) |
 
-`SHA256SUMS.txt` on the release page covers all four. Arch users can also
+`SHA256SUMS.txt` on the release page covers every artifact. Arch users can also
 build from the repo: `cd packaging/arch && makepkg -si`.
+
+### Android notes
+
+The APK is an offline shell around the same web UI (mining, tagging, diagrams,
+exports that work in the browser). Desktop-only features — plugins/AI, the
+connector API, custom tags file, native save dialogs — are not available.
+Enable “Install unknown apps” for your browser/file manager, then open the APK.
+Rebuild from source: see `packaging/android/README.md`.
 
 ## From source
 

@@ -2,7 +2,7 @@
 
 Mine English sentences, tag their grammar, forge diagrams. A retro FF7-styled desktop app built with Tauri and vanilla HTML/CSS/JS.
 
-**[▶ Try it in your browser](https://englishmoribund.github.io/MorEnglish_Sentence_Miner/)** — the same app, minus desktop-only features (plugins/AI, library, custom tags). [Download the desktop app](https://github.com/EnglishMoribund/MorEnglish_Sentence_Miner/releases/latest) for the full experience.
+**[▶ Try it in your browser](https://englishmoribund.github.io/MorEnglish_Sentence_Miner/)** — the same app, minus desktop-only features (plugins/AI, library, custom tags). [Download desktop or Android builds](https://github.com/EnglishMoribund/MorEnglish_Sentence_Miner/releases/latest) for offline use (APK is the web UI in a WebView shell).
 
 ![The app: a mined sentence, tagged segments, and the rendered diagram](docs/screenshots/app-overview.png)
 
