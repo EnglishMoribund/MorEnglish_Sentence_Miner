@@ -12,14 +12,14 @@
         font-style: normal;
         font-weight: 400;
         font-display: swap;
-        src: url('/fonts/vt323-latin.woff2') format('woff2');
+        src: url('fonts/vt323-latin.woff2') format('woff2');
       }
       @font-face {
         font-family: 'Press Start 2P';
         font-style: normal;
         font-weight: 400;
         font-display: swap;
-        src: url('/fonts/press-start-2p-latin.woff2') format('woff2');
+        src: url('fonts/press-start-2p-latin.woff2') format('woff2');
       }
 
       :root {
@@ -94,6 +94,15 @@
       }
       .tb-controls button:hover { background: rgba(232,197,71,.15); color: var(--gold); }
       #tb-close:hover { background: #8b1a1a; color: #ffd8d8; }
+      /* browser build only: replaces the window controls (see initChrome) */
+      .tb-get-app {
+        display: flex; align-items: center;
+        padding: 0 14px;
+        font-family: var(--font-chrome); font-size: 0.55rem;
+        color: var(--gold); text-decoration: none;
+        letter-spacing: 0.1em;
+      }
+      .tb-get-app:hover { color: var(--cyan); background: rgba(125,249,255,.1); }
 
       /* ---- Menubar ---- */
       #menubar {
@@ -514,7 +523,7 @@
   <body>
     <header id="titlebar" data-tauri-drag-region>
       <div class="tb-left" data-tauri-drag-region>
-        <img class="tb-icon" src="/app-icon.png" alt="" />
+        <img class="tb-icon" src="app-icon.png" alt="" />
         <span class="tb-title">MORENGLISH SENTENCE MINER</span>
       </div>
       <div class="tb-controls">
@@ -753,6 +762,6 @@ category = "My Tags"</pre>
       <button data-action="close-dialog">CLOSE</button>
     </dialog>
 
-    <script type="module" src="/main.js"></script>
+    <script type="module" src="main.js"></script>
   </body>
 </html>

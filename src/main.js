@@ -570,10 +570,19 @@ function initChrome() {
   window.__TAURI__?.app.getVersion().then(v =>
     document.querySelectorAll('.app-version').forEach(el => el.textContent = `v${v}`));
 
-  // Titlebar window controls
-  document.getElementById('tb-min').addEventListener('click', () => appWindow?.minimize());
-  document.getElementById('tb-max').addEventListener('click', () => appWindow?.toggleMaximize());
-  document.getElementById('tb-close').addEventListener('click', () => appWindow?.close());
+  // Titlebar window controls; in a plain browser (the GitHub Pages build)
+  // they'd be dead buttons — swap them for a link to the desktop app
+  if (appWindow) {
+    document.getElementById('tb-min').addEventListener('click', () => appWindow.minimize());
+    document.getElementById('tb-max').addEventListener('click', () => appWindow.toggleMaximize());
+    document.getElementById('tb-close').addEventListener('click', () => appWindow.close());
+  } else {
+    const a = document.createElement('a');
+    a.className = 'tb-get-app';
+    a.href = 'https://github.com/EnglishMoribund/MorEnglish_Sentence_Miner/releases/latest';
+    a.textContent = '⬇ GET THE DESKTOP APP';
+    document.querySelector('.tb-controls').replaceWith(a);
+  }
 
   // Menubar: click opens, hover switches while one is open, click-away closes
   const menus = [...document.querySelectorAll('#menubar .menu')];
