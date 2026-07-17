@@ -2,6 +2,8 @@
 
 Mine English sentences, tag their grammar, forge diagrams. A retro FF7-styled desktop app built with Tauri and vanilla HTML/CSS/JS.
 
+![The app: a mined sentence, tagged segments, and the rendered diagram](docs/screenshots/app-overview.png)
+
 ## Features
 
 - **Mine** a sentence into word/punctuation segments
@@ -10,6 +12,18 @@ Mine English sentences, tag their grammar, forge diagrams. A retro FF7-styled de
 - **Look up** any word on Wiktionary or any grammar term on Wikipedia via right-click
 - **Custom tags** via `registry.toml` in the app config dir (File ▸ Custom tags…)
 - Undo (Ctrl+Z), autosaved sessions, keyboard-driven tagging (type in search, press Enter)
+
+Exported diagrams use your chosen font and colors — this is the PNG the app saves, not a window capture:
+
+![An exported sentence diagram](docs/screenshots/diagram-abyss.png)
+
+## Screenshots
+
+| | |
+|---|---|
+| AI tag suggestions from a plugin ![AI tag suggestions dialog](docs/screenshots/ai-suggestions.png) | Diagram style presets and colors ![Diagram style dialog](docs/screenshots/style-dialog.png) |
+| Searchable grammar registry ![Registry search](docs/screenshots/registry-search.png) | Right-click lookups on any segment ![Segment context menu](docs/screenshots/context-menu.png) |
+| Sentence library ![Sentence library dialog](docs/screenshots/library.png) | |
 
 ## Development
 
