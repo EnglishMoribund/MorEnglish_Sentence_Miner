@@ -222,5 +222,19 @@ export const GRAMMAR_REGISTRY = [
   { id: 'dative', label: 'dative', def: 'indicating indirect object of a verb', category: 'Grammatical Case' },
   { id: 'genitive', label: 'genitive', def: 'indicating possession, origin or relation', category: 'Grammatical Case' },
   { id: 'possessive', label: 'possessive', def: 'indicating possession (\'s, my, whose)', category: 'Grammatical Case' },
-  { id: 'vocative', label: 'vocative', def: 'indicating calling or personal address', category: 'Grammatical Case' }
+  { id: 'vocative', label: 'vocative', def: 'indicating calling or personal address', category: 'Grammatical Case' },
+  { id: 'ablative', label: 'ablative', def: 'indicating motion away from, separation or source ("from the city")', category: 'Grammatical Case' },
+  { id: 'locative', label: 'locative', def: 'indicating location or place where ("in the house", "at dawn")', category: 'Grammatical Case' },
+  { id: 'instrumental', label: 'instrumental', def: 'indicating the means or instrument of an action ("with a banana", "by hand")', category: 'Grammatical Case' },
+  { id: 'comitative', label: 'comitative', def: 'indicating accompaniment ("together with his students")', category: 'Grammatical Case' },
+  { id: 'allative', label: 'allative', def: 'indicating motion toward or onto ("to the market")', category: 'Grammatical Case' },
+  { id: 'partitive', label: 'partitive', def: 'indicating a part or indefinite quantity of a whole ("some of the bread")', category: 'Grammatical Case' },
+  { id: 'essive', label: 'essive', def: 'indicating a temporary state or capacity ("as a child", "in his role as master")', category: 'Grammatical Case' },
+  { id: 'translative', label: 'translative', def: 'indicating a change of state or becoming ("turned into a hero")', category: 'Grammatical Case' },
+  { id: 'benefactive', label: 'benefactive', def: 'indicating the beneficiary of an action ("for the citizens")', category: 'Grammatical Case' },
+  { id: 'causal', label: 'causal', def: 'indicating the cause or reason for an action ("because of the noise")', category: 'Grammatical Case' },
+  { id: 'terminative', label: 'terminative', def: 'indicating a limit in space or time ("until dawn", "as far as the river")', category: 'Grammatical Case' },
+  { id: 'ergative', label: 'ergative', def: 'indicating the agent of a transitive verb in ergative-absolutive languages', category: 'Grammatical Case' },
+  { id: 'absolutive', label: 'absolutive', def: 'indicating the subject of an intransitive or object of a transitive verb in ergative-absolutive languages', category: 'Grammatical Case' },
+  { id: 'oblique', label: 'oblique', def: 'catch-all non-subject case covering objects and prepositional complements', category: 'Grammatical Case' }
 ];
