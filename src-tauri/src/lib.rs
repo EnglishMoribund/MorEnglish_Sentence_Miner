@@ -177,7 +177,9 @@ fn load_plugins(app: tauri::AppHandle) -> Result<PluginRegistry, String> {
     })
 }
 
-// ponytail: blocking run on the command thread pool — plugin runs are rare and short
+// ponytail: blocking run on the command thread pool — plugin runs are rare and
+// short; move to tauri::async_runtime::spawn_blocking if a slow plugin ever
+// makes other invoke commands lag
 #[tauri::command]
 fn run_plugin(command: String) -> Result<String, String> {
     let out = if cfg!(windows) {

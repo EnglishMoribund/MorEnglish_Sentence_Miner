@@ -71,7 +71,8 @@ async function main() {
   if (!model) {
     const tags = await (await fetch(`${OLLAMA}/api/tags`)).json();
     if (!tags.models?.length) throw new Error('No Ollama models installed.');
-    // ponytail: default to the biggest installed model — grammar tagging needs it
+    // ponytail: default to the biggest installed model — grammar tagging needs
+    // it; pass --model or OLLAMA_MODEL when the biggest is too slow or wrong
     model = tags.models.sort((a, b) => b.size - a.size)[0].name;
   }
 

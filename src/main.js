@@ -226,7 +226,8 @@ function selectedTerm() {
   return Array.from(selectedIndices).sort((a, b) => a - b).map(i => segments[i].text).join(' ');
 }
 
-// ponytail: whole-state snapshots, capped at 50 — plenty for a one-sentence app
+// ponytail: whole-state snapshots, capped at 50 — plenty for a one-sentence
+// app; switch to per-action deltas if undo ever feels heavy on long sources
 function pushUndo() {
   undoStack.push(JSON.stringify({ text: els.sourceText.value, segments }));
   if (undoStack.length > 50) undoStack.shift();

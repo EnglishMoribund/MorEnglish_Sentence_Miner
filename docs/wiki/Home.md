@@ -3,6 +3,10 @@
 Mine English sentences, tag their grammar, forge diagrams — a retro
 (FF7-window, CRT-scanline) desktop app built with Tauri.
 
+**[Try it in your browser](https://englishmoribund.github.io/MorEnglish_Sentence_Miner/)** —
+the web version runs the same frontend; plugins/AI, the library, and custom
+tags need the desktop app.
+
 **The loop:** paste or clip a sentence → split it into segments → tag words
 and phrases from a 100+ entry grammar registry (or let AI suggest tags) →
 export as a diagram, annotated text, flashcards, or a blog post.
@@ -25,7 +29,7 @@ export as a diagram, annotated text, flashcards, or a blog post.
 
 ## Pages
 
-- [[Installation]] — packages for Debian/Ubuntu, Fedora, and Arch
+- [[Installation]] — packages for Debian/Ubuntu, Fedora, Arch, and Windows
 - [[Usage]] — mining, tagging, the library, queue, and exports
 - [[Plugins]] — the plugin manager, bundled plugins, writing your own
 - [[Connector API]] — endpoints, auth, MCP server
