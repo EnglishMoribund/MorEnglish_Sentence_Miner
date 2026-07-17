@@ -565,6 +565,11 @@ function init() {
 }
 
 function initChrome() {
+  // Version labels come from tauri.conf.json — the one source of truth.
+  // The static text in index.html stays as the browser-mode fallback.
+  window.__TAURI__?.app.getVersion().then(v =>
+    document.querySelectorAll('.app-version').forEach(el => el.textContent = `v${v}`));
+
   // Titlebar window controls
   document.getElementById('tb-min').addEventListener('click', () => appWindow?.minimize());
   document.getElementById('tb-max').addEventListener('click', () => appWindow?.toggleMaximize());
@@ -940,12 +945,8 @@ function selectRange(a, b) {
 }
 
 function splitSentences(text) {
-  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
-    const seg = new Intl.Segmenter('en', { granularity: 'sentence' });
-    return [...seg.segment(text)].map(s => s.segment.trim()).filter(Boolean);
-  }
-  // ponytail: naive fallback — breaks on "Mr. Smith"; Intl.Segmenter is the real path
-  return text.split(/(?<=[.!?…])\s+/).map(s => s.trim()).filter(Boolean);
+  const seg = new Intl.Segmenter('en', { granularity: 'sentence' });
+  return [...seg.segment(text)].map(s => s.segment.trim()).filter(Boolean);
 }
 
 function updateQueueUI() {

@@ -2962,13 +2962,12 @@ dependencies = [
 
 [[package]]
 name = "sentence-miner"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "base64 0.22.1",
  "fontdb",
  "getrandom 0.3.4",
  "serde",
- "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

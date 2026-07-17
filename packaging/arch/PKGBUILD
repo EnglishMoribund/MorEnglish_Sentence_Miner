@@ -1,7 +1,7 @@
 # Maintainer: EnglishMoribund
 # Repackages the .deb from the GitHub release (same binary the deb/rpm ship).
 pkgname=morenglish-sentence-miner-bin
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=1
 pkgdesc="MorEnglish Sentence Miner — mine English sentences, tag their grammar, forge diagrams"
 arch=('x86_64')
@@ -11,7 +11,7 @@ depends=('webkit2gtk-4.1' 'gtk3')
 provides=('morenglish-sentence-miner')
 conflicts=('morenglish-sentence-miner')
 source=("$url/releases/download/v$pkgver/morenglish-sentence-miner_${pkgver}_amd64.deb")
-sha256sums=('55df14216e9b6535cdca84c0334903fe61b4bf6a068629c849b5902c4940fedb')
+sha256sums=('ed224c88855def832430ba76cc7780717df0155926602e143e0e153dd550ab69')
 
 package() {
   # makepkg has already unpacked the .deb (ar archive) into $srcdir

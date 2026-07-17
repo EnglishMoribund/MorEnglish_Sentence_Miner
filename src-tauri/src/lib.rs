@@ -199,10 +199,6 @@ fn read_library(app: &tauri::AppHandle) -> String {
         .unwrap_or_else(|_| "[]".into())
 }
 
-pub fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
 // Shared secret for the loopback API, persisted so plugins can read it from
 // the config dir. Blocks drive-by requests from web pages (custom header
 // forces a CORS preflight that never gets approved).
@@ -219,7 +215,7 @@ fn load_token(app: &tauri::AppHandle) -> String {
     }
     let mut bytes = [0u8; 16];
     getrandom::fill(&mut bytes).expect("os rng");
-    let token = hex(&bytes);
+    let token: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
     let _ = std::fs::write(&path, &token);
     token
 }
@@ -327,11 +323,6 @@ mod tests {
     }
 
     #[test]
-    fn hex_encodes() {
-        assert_eq!(hex(&[0x00, 0xff, 0x2a]), "00ff2a");
-    }
-
-    #[test]
     fn plugins_template_parses_to_zero_entries() {
         let parsed: PluginsFile = toml::from_str(PLUGINS_TEMPLATE).unwrap();
         assert!(parsed.plugin.is_empty());
@@ -373,7 +364,6 @@ mod tests {
     }
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

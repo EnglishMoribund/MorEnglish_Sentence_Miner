@@ -11,6 +11,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
+// Version tracks the repo's package.json instead of drifting on its own
+const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+
 const PORT = process.env.SENTENCE_MINER_PORT || 41337;
 const BASE = `http://127.0.0.1:${PORT}`;
 
@@ -104,7 +107,7 @@ async function handle(msg) {
     return reply(id, {
       protocolVersion: params?.protocolVersion ?? '2024-11-05',
       capabilities: { tools: {} },
-      serverInfo: { name: 'sentence-miner', version: '0.1.0' }
+      serverInfo: { name: 'sentence-miner', version: VERSION }
     });
   }
   if (method === 'ping') return reply(id, {});
