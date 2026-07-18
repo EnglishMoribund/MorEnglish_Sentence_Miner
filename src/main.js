@@ -376,6 +376,48 @@ function startBlankSlate(status = 'NEW SLATE') {
   setStatus(status);
 }
 
+// ---- Dialogs: non-modal floaters — drag by the title, click to raise, Esc closes the top one ----
+
+let dialogZ = 1002; // matches the dialog z-index in index.html
+
+function openDialog(dlg) {
+  dlg.style.zIndex = ++dialogZ;
+  // keep a previously dragged dialog on-screen if the window shrank
+  if (dlg.style.left) {
+    dlg.style.left = `${Math.max(0, Math.min(parseFloat(dlg.style.left), window.innerWidth - 60))}px`;
+    dlg.style.top = `${Math.max(0, Math.min(parseFloat(dlg.style.top), window.innerHeight - 60))}px`;
+  }
+  if (!dlg.open) dlg.show();
+}
+
+function topDialog() {
+  const open = [...document.querySelectorAll('dialog[open]')];
+  return open.sort((a, b) => (+a.style.zIndex || 0) - (+b.style.zIndex || 0)).pop() ?? null;
+}
+
+function initDialogDrag() {
+  document.querySelectorAll('dialog').forEach(dlg => {
+    dlg.addEventListener('pointerdown', () => { dlg.style.zIndex = ++dialogZ; });
+    const handle = dlg.querySelector('h2');
+    if (!handle) return;
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const rect = dlg.getBoundingClientRect();
+      const offX = e.clientX - rect.left, offY = e.clientY - rect.top;
+      const move = (ev) => {
+        dlg.style.margin = '0';
+        dlg.style.left = `${Math.max(0, Math.min(ev.clientX - offX, window.innerWidth - rect.width))}px`;
+        dlg.style.top = `${Math.max(0, Math.min(ev.clientY - offY, window.innerHeight - 40))}px`;
+      };
+      handle.setPointerCapture(e.pointerId);
+      handle.addEventListener('pointermove', move);
+      const stop = () => handle.removeEventListener('pointermove', move);
+      handle.addEventListener('pointerup', stop, { once: true });
+      handle.addEventListener('pointercancel', stop, { once: true });
+    });
+  });
+}
+
 const actions = {
   'parse': handleParse,
   'undo': undo,
@@ -406,7 +448,7 @@ const actions = {
     syncStyleControls();
     showOutputView('image');
     triggerRender();
-    document.getElementById('style-dialog').showModal();
+    openDialog(document.getElementById('style-dialog'));
   },
   'style-reset': () => {
     diagramStyle = { ...DEFAULT_STYLE };
@@ -475,7 +517,7 @@ const actions = {
       await saveTextAs('sentence-miner.csv', 'CSV', 'csv', 'text/csv', csv);
     } catch (err) { setStatus(`SAVE FAILED — ${err}`); }
   },
-  'ai-open': () => els.aiDialog.showModal(),
+  'ai-open': () => openDialog(els.aiDialog),
   'ai-apply-all': () => {
     if (!lastSuggestions.some(s => findSegmentRange(s.text))) {
       els.aiStatus.textContent = 'Nothing applicable to apply.';
@@ -498,16 +540,16 @@ const actions = {
     els.aiStatus.textContent = `Applied ${applied} of ${lastSuggestions.length} suggestions.`;
     setStatus(`AI ▸ APPLIED ${applied}`);
   },
-  'plugins': () => { loadPlugins(); els.pluginsDialog.showModal(); },
+  'plugins': () => { loadPlugins(); openDialog(els.pluginsDialog); },
   'reload-plugins': () => loadPlugins(true),
   'save-library': () => saveToLibrary(),
-  'library': () => { buildLibraryUI(); els.libraryDialog.showModal(); },
-  'custom-tags': () => els.customDialog.showModal(),
+  'library': () => { buildLibraryUI(); openDialog(els.libraryDialog); },
+  'custom-tags': () => openDialog(els.customDialog),
   'reload-custom': () => loadCustomTags(true),
   'open-registry-file': () => openConfigFile(els.customPath.textContent),
   'open-plugins-file': () => openConfigFile(els.pluginsPath.textContent),
-  'about': () => els.aboutDialog.showModal(),
-  'shortcuts': () => els.shortcutsDialog.showModal(),
+  'about': () => openDialog(els.aboutDialog),
+  'shortcuts': () => openDialog(els.shortcutsDialog),
   'close-dialog': (btn) => btn.closest('dialog').close()
 };
 
@@ -520,6 +562,7 @@ function init() {
   loadDiagramStyle();
   bindStyleControls();
   buildStylePresets();
+  initDialogDrag();
   els.btnParse.addEventListener('click', handleParse);
   els.queuePrev.addEventListener('click', () => queueStep(-1));
   els.queueNext.addEventListener('click', () => queueStep(1));
@@ -571,7 +614,7 @@ function init() {
       els.aiStatus.textContent = shown
         ? `${shown} suggestions — review and apply.`
         : 'No valid suggestions received.';
-      if (!els.aiDialog.open) els.aiDialog.showModal();
+      openDialog(els.aiDialog);
       if (pluginRunsActive > 0) {
         updatePluginProgressUi(`▸ SUGGESTIONS ARRIVED — FINISHING ${pluginActiveName || 'PLUGIN'}…`);
       } else {
@@ -645,7 +688,8 @@ function initChrome() {
   window.addEventListener('keydown', (e) => {
     const typing = /^(TEXTAREA|INPUT)$/.test(document.activeElement?.tagName);
     if (e.key === 'Escape') {
-      if (document.querySelector('dialog[open]')) return; // dialog closes itself; keep the selection
+      const top = topDialog();
+      if (top) { top.close(); return; } // close the topmost dialog; keep the selection
       closeMenus(); hideContextMenu(); actions['clear-selection']();
     }
     if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); handleParse(); }
@@ -656,7 +700,7 @@ function initChrome() {
     }
     if (e.ctrlKey && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); undo(); }
     if (e.ctrlKey && e.key.toLowerCase() === 'a' && !typing) { e.preventDefault(); actions['select-all'](); }
-    if (e.key === 'F1') { e.preventDefault(); els.shortcutsDialog.showModal(); }
+    if (e.key === 'F1') { e.preventDefault(); openDialog(els.shortcutsDialog); }
   });
 }
 
@@ -756,7 +800,7 @@ function pluginRunStarted(plugin) {
     els.aiResults.innerHTML = '';
     lastSuggestions = [];
     els.aiStatus.textContent = `Waiting on ${name}… suggestions will appear here.`;
-    if (!els.aiDialog.open) els.aiDialog.showModal();
+    openDialog(els.aiDialog);
   }
 
   for (const bar of [els.pluginsLoading, els.aiLoading]) {
