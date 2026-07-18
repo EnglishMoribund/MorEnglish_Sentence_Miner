@@ -400,6 +400,13 @@ function initDialogDrag() {
     dlg.addEventListener('pointerdown', () => { dlg.style.zIndex = ++dialogZ; });
     const handle = dlg.querySelector('h2');
     if (!handle) return;
+    const x = document.createElement('button');
+    x.className = 'dlg-x';
+    x.textContent = '✕';
+    x.setAttribute('aria-label', 'Close');
+    x.addEventListener('pointerdown', (e) => e.stopPropagation()); // don't start a drag
+    x.addEventListener('click', () => dlg.close());
+    handle.appendChild(x);
     handle.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       const rect = dlg.getBoundingClientRect();

@@ -406,8 +406,10 @@
       .blink { color: var(--cyan); animation: blink 1.1s steps(1) infinite; }
       @keyframes blink { 50% { opacity: 0; } }
 
-      /* ---- Dialogs: non-modal floaters, dragged by their title ---- */
+      /* ---- Dialogs: non-modal floaters, dragged by their window bar ---- */
       dialog {
+        --dlg-pad-y: 1.5rem;
+        --dlg-pad-x: 2rem;
         position: fixed;
         inset: 0;
         margin: auto;
@@ -422,16 +424,30 @@
         box-shadow: inset 0 0 0 2px var(--ridge-dark), 0 8px 30px rgba(0,0,0,.8);
         color: var(--text-main);
         font-family: var(--font-body); font-size: 1.3rem;
-        padding: 1.5rem 2rem;
+        padding: var(--dlg-pad-y) var(--dlg-pad-x);
         text-align: center;
         max-width: 380px;
       }
+      /* the h2 is the window bar: full-width strip, drag handle, holds the ✕ */
       dialog h2 {
         font-family: var(--font-chrome); font-size: 0.7rem; color: var(--gold); letter-spacing: 0.15em;
         cursor: move;
         user-select: none;
         touch-action: none;
+        position: relative;
+        margin: calc(-1 * var(--dlg-pad-y)) calc(-1 * var(--dlg-pad-x)) 1rem;
+        padding: 0.6rem 2.2rem;
+        background: linear-gradient(180deg, var(--panel-hi), var(--ridge-dark));
+        border-bottom: 2px solid var(--gold);
+        border-radius: 4px 4px 0 0;
       }
+      dialog h2 .dlg-x {
+        position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%);
+        background: none; border: none; padding: 0.2rem 0.45rem;
+        color: var(--gold); font-family: var(--font-chrome); font-size: 0.7rem;
+        cursor: pointer;
+      }
+      dialog h2 .dlg-x:hover { color: #fff; }
       dialog .gem { font-size: 2rem; color: var(--gem); }
       dialog p { color: var(--text-muted); margin: 0.75rem 0 1.25rem; }
       #about-dialog { max-width: 480px; text-align: left; }
@@ -776,7 +792,8 @@
           width: calc(100vw - 1rem);
           max-width: calc(100vw - 1rem);
           max-height: calc(100dvh - 1rem);
-          padding: 1rem 0.85rem;
+          --dlg-pad-y: 1rem;
+          --dlg-pad-x: 0.85rem;
           font-size: 1.15rem;
         }
         dialog h2 { font-size: 0.55rem; letter-spacing: 0.1em; }
@@ -1082,8 +1099,8 @@ category = "My Tags"</pre>
     </dialog>
 
     <dialog id="about-dialog">
-      <div class="gem">◆</div>
       <h2>MORENGLISH SENTENCE MINER</h2>
+      <div class="gem">◆</div>
       <p><span class="app-version">v0.3.1</span> — mine English sentences, tag their grammar, forge diagrams.</p>
       <p>A retro FF7-styled desktop app for English grammar analysis. Paste or clip a sentence, split it into segments, tag words and phrases from a searchable grammar registry, then export diagrams, Markdown, HTML ruby, or study decks.</p>
       <p>Optional AI plugins (Ollama, Anthropic, or any CLI), a local sentence library, custom tags, and a loopback connector API / MCP server for scripts and agents. AI suggestions are always reviewed before they apply.</p>
