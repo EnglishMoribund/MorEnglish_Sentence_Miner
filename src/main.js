@@ -9,6 +9,8 @@ let lastClickedIndex = null;
 let isDragging = false;
 let dragStartIndex = null;
 let statusTimeout = null;
+let saveTimer = null;
+let styleRenderTimer = null;
 let undoStack = [];
 let lastCanvas = null;
 
@@ -156,7 +158,10 @@ function bindStyleControls() {
       diagramStyle[key] = el.value;
       localStorage.setItem('diagram-style', JSON.stringify(diagramStyle));
       syncStyleControls();
-      triggerRender();
+      // color pickers fire 'input' continuously while dragging — coalesce
+      // the full canvas render + PNG encode behind one trailing timer
+      clearTimeout(styleRenderTimer);
+      styleRenderTimer = setTimeout(triggerRender, 80);
     });
   }
 }
@@ -250,7 +255,14 @@ function undo() {
   setStatus('UNDONE');
 }
 
+// Debounced: fires on every keystroke and drag-select event, and each save
+// serializes state + registry twice (localStorage + IPC). pagehide flushes.
 function saveState() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveStateNow, 250);
+}
+
+function saveStateNow() {
   localStorage.setItem('sentence-miner', JSON.stringify({ text: els.sourceText.value, segments, queue, queueIndex }));
   syncState();
 }
@@ -580,6 +592,9 @@ function init() {
 
   // Global listener to stop dragging if mouse is released anywhere
   window.addEventListener('mouseup', () => { isDragging = false; });
+
+  // Flush the debounced save so closing right after an edit loses nothing
+  window.addEventListener('pagehide', saveStateNow);
 
   // Click the negative space (or punctuation) to deselect
   els.segmentsContainer.addEventListener('mousedown', (e) => {
@@ -1044,9 +1059,13 @@ function handleSearch(e) {
   buildRegistryUI(filtered, true);
 }
 
+let registryButtonsDisabled = null; // skip touching hundreds of buttons when unchanged
+
 function updateRegistryState() {
-  const buttons = els.registryContainer.querySelectorAll('.registry-item');
-  buttons.forEach(btn => btn.disabled = selectedIndices.size === 0);
+  const disabled = selectedIndices.size === 0;
+  if (disabled === registryButtonsDisabled) return;
+  registryButtonsDisabled = disabled;
+  els.registryContainer.querySelectorAll('.registry-item').forEach(btn => btn.disabled = disabled);
 }
 
 function makeSpan(cls, text) {

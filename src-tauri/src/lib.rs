@@ -33,8 +33,10 @@ const TEMPLATE: &str = r#"# MorEnglish Sentence Miner — custom grammar tags
 # category = "My Tags"    # optional, defaults to "Custom"
 "#;
 
+// File/font commands are async so they run on the thread pool — a sync
+// command executes on the main thread and stalls the webview while it works.
 #[tauri::command]
-fn load_custom_registry(app: tauri::AppHandle) -> Result<CustomRegistry, String> {
+async fn load_custom_registry(app: tauri::AppHandle) -> Result<CustomRegistry, String> {
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
     let path = dir.join("registry.toml");
     if !path.exists() {
@@ -50,7 +52,7 @@ fn load_custom_registry(app: tauri::AppHandle) -> Result<CustomRegistry, String>
 }
 
 #[tauri::command]
-fn list_fonts() -> Vec<String> {
+async fn list_fonts() -> Vec<String> {
     let mut db = fontdb::Database::new();
     db.load_system_fonts();
     let mut families: Vec<String> = db
@@ -65,7 +67,7 @@ fn list_fonts() -> Vec<String> {
 // Saves to the given path (from the native save dialog); with no path,
 // falls back to Pictures with a timestamped name.
 #[tauri::command]
-fn save_png(app: tauri::AppHandle, data: Vec<u8>, path: Option<String>) -> Result<String, String> {
+async fn save_png(app: tauri::AppHandle, data: Vec<u8>, path: Option<String>) -> Result<String, String> {
     let path = match path {
         Some(p) => std::path::PathBuf::from(p),
         None => {
@@ -86,7 +88,7 @@ fn save_png(app: tauri::AppHandle, data: Vec<u8>, path: Option<String>) -> Resul
 }
 
 #[tauri::command]
-fn save_text_file(path: String, text: String) -> Result<(), String> {
+async fn save_text_file(path: String, text: String) -> Result<(), String> {
     std::fs::write(path, text).map_err(|e| e.to_string())
 }
 
@@ -114,7 +116,7 @@ fn config_path(app: &tauri::AppHandle, file: &str) -> Result<std::path::PathBuf,
 }
 
 #[tauri::command]
-fn library_load(app: tauri::AppHandle) -> Result<String, String> {
+async fn library_load(app: tauri::AppHandle) -> Result<String, String> {
     let path = config_path(&app, "library.json")?;
     if !path.exists() {
         return Ok("[]".into());
@@ -123,7 +125,7 @@ fn library_load(app: tauri::AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn library_save(app: tauri::AppHandle, json: String) -> Result<(), String> {
+async fn library_save(app: tauri::AppHandle, json: String) -> Result<(), String> {
     std::fs::write(config_path(&app, "library.json")?, json).map_err(|e| e.to_string())
 }
 
@@ -164,7 +166,7 @@ const PLUGINS_TEMPLATE: &str = r#"# MorEnglish Sentence Miner — plugins
 "#;
 
 #[tauri::command]
-fn load_plugins(app: tauri::AppHandle) -> Result<PluginRegistry, String> {
+async fn load_plugins(app: tauri::AppHandle) -> Result<PluginRegistry, String> {
     let path = config_path(&app, "plugins.toml")?;
     if !path.exists() {
         std::fs::write(&path, PLUGINS_TEMPLATE).map_err(|e| e.to_string())?;
@@ -320,7 +322,7 @@ mod tests {
 
     #[test]
     fn list_fonts_is_sorted_and_unique() {
-        let fonts = list_fonts();
+        let fonts = tauri::async_runtime::block_on(list_fonts());
         let mut expected = fonts.clone();
         expected.sort();
         expected.dedup();
