@@ -1,7 +1,7 @@
 # Maintainer: EnglishMoribund
 # Repackages the .deb from the GitHub release (same binary the deb/rpm ship).
 pkgname=morenglish-sentence-miner-bin
-pkgver=0.3.1
+pkgver=0.3.2
 pkgrel=1
 pkgdesc="MorEnglish Sentence Miner — mine English sentences, tag their grammar, forge diagrams"
 arch=('x86_64')
