@@ -11,7 +11,7 @@ depends=('webkit2gtk-4.1' 'gtk3')
 provides=('morenglish-sentence-miner')
 conflicts=('morenglish-sentence-miner')
 source=("$url/releases/download/v$pkgver/morenglish-sentence-miner_${pkgver}_amd64.deb")
-sha256sums=('ed224c88855def832430ba76cc7780717df0155926602e143e0e153dd550ab69')
+sha256sums=('62cb15c061c6e2e150df8e925af699ea27b749fe47c6f7265e86cb0efa837ed0')
 
 package() {
   # makepkg has already unpacked the .deb (ar archive) into $srcdir
