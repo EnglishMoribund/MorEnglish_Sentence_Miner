@@ -177,22 +177,25 @@ fn load_plugins(app: tauri::AppHandle) -> Result<PluginRegistry, String> {
     })
 }
 
-// ponytail: blocking run on the command thread pool — plugin runs are rare and
-// short; move to tauri::async_runtime::spawn_blocking if a slow plugin ever
-// makes other invoke commands lag
+// async + spawn_blocking: a sync command runs on the main thread, freezing
+// the webview (no repaint, loading bar never shows) for the whole plugin run
 #[tauri::command]
-fn run_plugin(command: String) -> Result<String, String> {
-    let out = if cfg!(windows) {
-        std::process::Command::new("cmd").args(["/C", &command]).output()
-    } else {
-        std::process::Command::new("sh").arg("-c").arg(&command).output()
-    }
-    .map_err(|e| e.to_string())?;
-    let mut text = String::from_utf8_lossy(&out.stdout).to_string();
-    text.push_str(&String::from_utf8_lossy(&out.stderr));
-    let text = text.trim();
-    let start = text.char_indices().rev().nth(399).map(|(i, _)| i).unwrap_or(0);
-    Ok(format!("{} — {}", out.status, &text[start..]))
+async fn run_plugin(command: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let out = if cfg!(windows) {
+            std::process::Command::new("cmd").args(["/C", &command]).output()
+        } else {
+            std::process::Command::new("sh").arg("-c").arg(&command).output()
+        }
+        .map_err(|e| e.to_string())?;
+        let mut text = String::from_utf8_lossy(&out.stdout).to_string();
+        text.push_str(&String::from_utf8_lossy(&out.stderr));
+        let text = text.trim();
+        let start = text.char_indices().rev().nth(399).map(|(i, _)| i).unwrap_or(0);
+        Ok(format!("{} — {}", out.status, &text[start..]))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn read_library(app: &tauri::AppHandle) -> String {
@@ -343,7 +346,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn run_plugin_captures_output() {
-        let out = run_plugin("echo hello-plugin".into()).unwrap();
+        let out = tauri::async_runtime::block_on(run_plugin("echo hello-plugin".into())).unwrap();
         assert!(out.contains("hello-plugin"), "{out}");
         assert!(out.contains("exit status: 0"), "{out}");
     }
