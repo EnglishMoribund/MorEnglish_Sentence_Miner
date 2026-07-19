@@ -2,8 +2,8 @@ plugins {
     id 'com.android.application'
 }
 
-def appVersion = '0.3.3'
-def appVersionCode = 303
+def appVersion = '0.3.4'
+def appVersionCode = 304
 
 android {
     namespace 'com.sentence.miner'
