@@ -454,7 +454,7 @@
       #about-dialog h2, #about-dialog .gem { text-align: center; }
       #about-dialog p { margin: 0.5rem 0; line-height: 1.35; }
       #about-dialog p:first-of-type { text-align: center; margin-top: 0.75rem; }
-      #about-dialog button { display: block; margin: 1.25rem auto 0; }
+      #about-dialog > button { display: block; margin: 1.25rem auto 0; }
       #shortcuts-dialog { max-width: 440px; }
       #custom-dialog { max-width: 460px; }
       #custom-dialog code {
@@ -974,7 +974,7 @@
       <span class="stat">SEG <b id="stat-seg">0</b></span>
       <span class="stat">TAGGED <b id="stat-tagged">0</b></span>
       <span class="stat">SEL <b id="stat-sel">0</b></span>
-      <span class="sb-version"><span class="app-version">v0.3.2</span> <span class="blink">▮</span></span>
+      <span class="sb-version"><span class="app-version">v0.3.3</span> <span class="blink">▮</span></span>
     </footer>
 
     <div id="context-menu" class="panel"></div>
@@ -1101,7 +1101,7 @@ category = "My Tags"</pre>
     <dialog id="about-dialog">
       <h2>MORENGLISH SENTENCE MINER</h2>
       <div class="gem">◆</div>
-      <p><span class="app-version">v0.3.2</span> — mine English sentences, tag their grammar, forge diagrams.</p>
+      <p><span class="app-version">v0.3.3</span> — mine English sentences, tag their grammar, forge diagrams.</p>
       <p>A retro FF7-styled desktop app for English grammar analysis. Paste or clip a sentence, split it into segments, tag words and phrases from a searchable grammar registry, then export diagrams, Markdown, HTML ruby, or study decks.</p>
       <p>Optional AI plugins (Ollama, Anthropic, or any CLI), a local sentence library, custom tags, and a loopback connector API / MCP server for scripts and agents. AI suggestions are always reviewed before they apply.</p>
       <button data-action="close-dialog">CLOSE</button>
