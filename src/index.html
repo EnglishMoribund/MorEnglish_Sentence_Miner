@@ -650,6 +650,47 @@
         * { transition: none !important; animation: none !important; }
       }
 
+      /* ---- Android shell (body.android, set by main.js): status strip
+         moves under the titlebar, menubar becomes a bottom nav bar whose
+         menus open as bottom sheets above it ---- */
+      body.android #titlebar { order: -2; }
+      body.android #statusbar { order: -1; border-top: none; border-bottom: 2px solid var(--gold); }
+      body.android #menubar {
+        order: 1;
+        overflow: visible;
+        height: 56px;
+        border-bottom: none;
+        border-top: 2px solid var(--gold);
+      }
+      body.android .menu { flex: 1; }
+      body.android .menu-btn {
+        width: 100%; height: 100%;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 5px;
+        padding: 4px 2px;
+        font-size: 0.4rem;
+        letter-spacing: 0.05em;
+      }
+      body.android .menu-btn::before {
+        content: attr(data-icon);
+        font-family: var(--font-body);
+        font-size: 1.35rem;
+        line-height: 1;
+      }
+      body.android .menu.open .menu-btn { color: var(--gold); background: rgba(232,197,71,.12); }
+      body.android .menu-drop,
+      body.android .menu:nth-last-child(-n+2) .menu-drop {
+        position: fixed;
+        left: 0.5rem; right: 0.5rem;
+        top: auto;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
+        min-width: 0; max-width: none;
+        max-height: 55vh;
+        overflow-y: auto;
+      }
+      /* no window to exit on Android */
+      body.android [data-action="exit"] { display: none; }
+
       /* Touch: no hover — keep wiki / interactive chrome visible */
       @media (hover: none) {
         .reg-wiki { opacity: 1; }
@@ -857,7 +898,7 @@
 
     <nav id="menubar">
       <div class="menu">
-        <button class="menu-btn">FILE</button>
+        <button class="menu-btn" data-icon="▤">FILE</button>
         <div class="menu-drop panel">
           <button data-action="parse">Mine sentence <kbd>Ctrl+Enter</kbd></button>
           <button data-action="new-slate">New blank slate <kbd>Ctrl+N</kbd></button>
@@ -871,7 +912,7 @@
         </div>
       </div>
       <div class="menu">
-        <button class="menu-btn">EDIT</button>
+        <button class="menu-btn" data-icon="✎">EDIT</button>
         <div class="menu-drop panel">
           <button data-action="undo">Undo <kbd>Ctrl+Z</kbd></button>
           <hr>
@@ -882,7 +923,7 @@
         </div>
       </div>
       <div class="menu">
-        <button class="menu-btn">EXPORT</button>
+        <button class="menu-btn" data-icon="⇪">EXPORT</button>
         <div class="menu-drop panel">
           <button data-action="render-image">Render image</button>
           <button data-action="diagram-style">Diagram style…</button>
@@ -898,13 +939,13 @@
         </div>
       </div>
       <div class="menu">
-        <button class="menu-btn">PLUGINS</button>
+        <button class="menu-btn" data-icon="◆">PLUGINS</button>
         <div class="menu-drop panel">
           <button data-action="plugins">Plugin manager…</button>
         </div>
       </div>
       <div class="menu">
-        <button class="menu-btn">HELP</button>
+        <button class="menu-btn" data-icon="?">HELP</button>
         <div class="menu-drop panel">
           <button data-action="shortcuts">Keyboard shortcuts <kbd>F1</kbd></button>
           <button data-action="about">About MorEnglish Sentence Miner</button>

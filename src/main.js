@@ -15,6 +15,9 @@ let undoStack = [];
 let lastCanvas = null;
 
 const appWindow = window.__TAURI__?.window.getCurrentWindow();
+// Android WebView shell serves the UI from this virtual asset host
+const isAndroid = location.host === 'appassets.androidplatform.net' || location.search === '?android';
+if (isAndroid) document.body.classList.add('android');
 const invoke = window.__TAURI__?.core.invoke;
 
 // Built-in tags plus whatever the user's registry.toml adds
@@ -671,6 +674,8 @@ function initChrome() {
     document.getElementById('tb-min').addEventListener('click', () => appWindow.minimize());
     document.getElementById('tb-max').addEventListener('click', () => appWindow.toggleMaximize());
     document.getElementById('tb-close').addEventListener('click', () => appWindow.close());
+  } else if (isAndroid) {
+    document.querySelector('.tb-controls').remove(); // Android manages its own window
   } else {
     const a = document.createElement('a');
     a.className = 'tb-get-app';
