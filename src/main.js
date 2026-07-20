@@ -532,6 +532,28 @@ const actions = {
     let i = 0;
     exportText(seg => `{{c${++i}::${seg.text}::${tagLabel(seg.tag)}}}`, 'cloze', 'COPIED ▸ CLOZE');
   },
+  // Copy a ready-to-paste prompt about the labels YOU chose into any web AI chat
+  // (ChatGPT, Claude, Gemini, Kimi…). The word→label list carries every label as
+  // text, so one paste is a complete question — no screenshot needed.
+  'discuss-ai': () => {
+    const tagged = segments.filter(s => s.tag);
+    if (!tagged.length) { setStatus('TAG SOMETHING FIRST'); return; }
+    let sentence = '';
+    segments.forEach((seg, i) => { sentence += (seg.isPunctuation || i === 0) ? seg.text : ` ${seg.text}`; });
+    const labels = tagged.map(s => `- "${s.text}" → ${tagLabel(s.tag)}`).join('\n');
+    const prompt =
+`I'm studying English grammar with a sentence-mining app and want to discuss the labels I chose.
+
+Sentence: ${sentence}
+
+My labels:
+${labels}
+
+For each label, tell me whether it's accurate, and note any nuance, a common alternative analysis, or a more precise term. Be encouraging but honest, and finish with a one-line overall verdict.`;
+    navigator.clipboard.writeText(prompt)
+      .then(() => setStatus('COPIED ▸ AI PROMPT — PASTE INTO ANY CHAT'))
+      .catch(() => { els.textOutputArea.value = prompt; showOutputView('text'); setStatus('CLIPBOARD BLOCKED — PROMPT SHOWN BELOW'); });
+  },
   'export-csv': async () => {
     const csv = libraryCsv();
     if (!csv.includes('\r\n')) { setStatus('NOTHING TO EXPORT — TAG SOMETHING FIRST'); return; }
@@ -727,6 +749,7 @@ function initChrome() {
     }
     if (e.ctrlKey && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); undo(); }
     if (e.ctrlKey && e.key.toLowerCase() === 'a' && !typing) { e.preventDefault(); actions['select-all'](); }
+    if (e.ctrlKey && e.key.toLowerCase() === 'd' && !typing) { e.preventDefault(); actions['discuss-ai'](); }
     if (e.key === 'F1') { e.preventDefault(); openDialog(els.shortcutsDialog); }
   });
 }

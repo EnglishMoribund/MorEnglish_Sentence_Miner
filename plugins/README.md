@@ -24,6 +24,7 @@ split into its own repo:
 | `ollama/` | `node ollama/suggest.mjs [--model NAME]` | local [Ollama](https://ollama.com); defaults to your biggest installed model |
 | `anthropic/` | `ANTHROPIC_API_KEY=... node anthropic/suggest.mjs` | an Anthropic API key |
 | `cli/` | `node cli/suggest.mjs -- grok -p` (or `claude -p`, `gemini -p`, …) | any AI CLI that takes a prompt argument and prints the reply — uses that CLI's own login |
+| `discuss/` | `node discuss/discuss.mjs -- claude -p` (or `grok -p`, …) | any AI CLI — talks about the tags **you already chose** and prints the critique to your terminal; pushes nothing back |
 | `blog/` | `node blog/post.mjs [--out post.html]` | nothing — writes a paste-ready HTML snippet (diagram + ruby sentence + tag glossary) |
 
 Living elsewhere: the [mflash deck exporter](https://github.com/EnglishMoribund/MorEnglish_Sentence_Miner_mflash_export)
